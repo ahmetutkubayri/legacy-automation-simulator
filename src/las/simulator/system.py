@@ -11,8 +11,12 @@ application driven through screens (see :mod:`las.simulator.screens`):
 * the results table reports an inflated row count (real rows plus trailing
   buffer rows) and serves empty placeholder rows past the end of the real
   data, exactly the kind of lie legacy table widgets tell;
+* faults are injected only at defined interaction points and only through
+  the centralized :class:`~las.simulator.faults.FaultInjector` — the
+  default ``none`` profile leaves behavior exactly as documented here;
 * ``reset()`` is the one escape hatch that always works, returning the
-  system to a pristine main menu.
+  system to a pristine main menu (``navigate()`` and ``reset()`` are
+  deliberately fault-free paths).
 
 Time is injected: :class:`SimulatedClock` lets tests advance time
 instantly and deterministically, while :class:`SystemClock` provides real
@@ -38,8 +42,19 @@ import time
 from dataclasses import dataclass
 from typing import Protocol
 
+from las.simulator.faults import FaultInjector, FaultKind, InteractionPoint
 from las.simulator.screens import POPUP_SCREEN, SCREENS, Control, ControlType, ScreenId
 from las.simulator.store import OperationalRecord, RecordStore, SimulatorError
+
+#: Message shown by an injected surprise popup (invented, generic).
+SURPRISE_POPUP_MESSAGE = "Unexpected system notice. Dismiss to continue."
+
+#: Buttons whose press is a distinct interaction point for fault decisions.
+_BUTTON_POINTS: dict[str, InteractionPoint] = {
+    "run_query": InteractionPoint.QUERY_EXECUTION,
+    "open_detail": InteractionPoint.RECORD_OPENING,
+    "apply_status": InteractionPoint.STATUS_APPLICATION,
+}
 
 
 class NavigationError(SimulatorError):
@@ -129,6 +144,7 @@ class LegacySystem:
         buffer_rows: int = 3,
         busy_delay_seconds: float = 0.0,
         clock: Clock | None = None,
+        fault_injector: FaultInjector | None = None,
     ) -> None:
         if visible_rows < 1:
             raise ValueError("visible_rows must be >= 1")
@@ -141,6 +157,7 @@ class LegacySystem:
         self._buffer_rows = buffer_rows
         self._busy_delay = busy_delay_seconds
         self._clock: Clock = clock if clock is not None else SimulatedClock()
+        self._faults = fault_injector if fault_injector is not None else FaultInjector()
         self._screen = ScreenId.MAIN_MENU
         self._fields: dict[str, str] = {}
         self._status_texts: dict[str, str] = {}
@@ -164,6 +181,10 @@ class LegacySystem:
     def popup_message(self) -> str | None:
         return self._popup
 
+    @property
+    def fault_injector(self) -> FaultInjector:
+        return self._faults
+
     def visible_controls(self) -> tuple[Control, ...]:
         if self._popup is not None:
             return POPUP_SCREEN.controls
@@ -179,17 +200,21 @@ class LegacySystem:
                 f"a popup is open ('{self._popup}'); dismiss it before interacting"
             )
 
-    def _visible_control(self, control_id: str, expected: ControlType) -> Control:
+    def _visible_control(self, control_id: str, *expected: ControlType) -> Control:
         active = POPUP_SCREEN if self._popup is not None else SCREENS[self._screen]
         control = active.find(control_id)
-        if control is None or control.control_type != expected:
+        if control is None or control.control_type not in expected:
+            wanted = "/".join(kind.value for kind in expected)
             available = ", ".join(
-                c.control_id for c in active.controls if c.control_type == expected
+                c.control_id for c in active.controls if c.control_type in expected
             )
             raise ControlNotFoundError(
-                f"no {expected.value} '{control_id}' on '{active.title}' "
+                f"no {wanted} '{control_id}' on '{active.title}' "
                 f"(available: {available or 'none'})"
             )
+        decision = self._faults.decide(InteractionPoint.CONTROL_LOOKUP)
+        if decision.fault is FaultKind.TRANSIENT_CONTROL_MISSING:
+            raise ControlNotFoundError(f"control '{control_id}' is temporarily unavailable")
         return control
 
     def _begin_busy(self) -> None:
@@ -209,10 +234,9 @@ class LegacySystem:
         self._require_interactive(control_id)
         if self._popup is not None and control_id == "popup_message":
             return self._popup
-        try:
-            control = self._visible_control(control_id, ControlType.TEXT_FIELD)
-        except ControlNotFoundError:
-            control = self._visible_control(control_id, ControlType.STATUS_TEXT)
+        control = self._visible_control(
+            control_id, ControlType.TEXT_FIELD, ControlType.STATUS_TEXT
+        )
         if control.control_type == ControlType.STATUS_TEXT:
             if control_id == "record_summary":
                 return self._record_summary()
@@ -239,6 +263,17 @@ class LegacySystem:
             self._popup = None
             return
 
+        decision = self._faults.decide(
+            _BUTTON_POINTS.get(control_id, InteractionPoint.BUTTON_PRESS)
+        )
+        if decision.fault is FaultKind.SURPRISE_POPUP:
+            self._open_popup(SURPRISE_POPUP_MESSAGE)
+            return
+        if decision.fault is FaultKind.EXTENDED_BUSY:
+            # The action is swallowed: long busy, nothing else happens.
+            self._busy_until = self._clock.now() + self._busy_delay + decision.delay_seconds
+            return
+
         handlers = {
             (ScreenId.MAIN_MENU, "open_query"): self._handle_open_query,
             (ScreenId.QUERY, "run_query"): self._handle_run_query,
@@ -249,6 +284,10 @@ class LegacySystem:
             (ScreenId.DETAIL, "back_to_results"): self._handle_back_to_results,
         }
         handlers[(self._screen, control_id)]()
+        if decision.fault is FaultKind.SLOW_RESPONSE:
+            self._busy_until = max(
+                self._busy_until, self._clock.now() + decision.delay_seconds
+            )
 
     def _handle_open_query(self) -> None:
         self._screen = ScreenId.QUERY
@@ -342,10 +381,18 @@ class LegacySystem:
         """Scroll to a logical position (clamped); returns the actual position."""
         self._require_interactive("results_table")
         self._visible_control("results_table", ControlType.TABLE)
+        decision = self._faults.decide(InteractionPoint.PAGE_MOVEMENT)
         self._begin_busy()
+        if decision.fault is FaultKind.STALLED_PAGINATION:
+            # The scroll request is ignored; the position stays put.
+            return self._scroll
         reported = len(self._result_ids) + self._buffer_rows
         max_scroll = max(0, reported - self._visible_rows)
         self._scroll = min(max(0, position), max_scroll)
+        if decision.fault is FaultKind.SLOW_RESPONSE:
+            self._busy_until = max(
+                self._busy_until, self._clock.now() + decision.delay_seconds
+            )
         return self._scroll
 
     def read_table_rows(self) -> tuple[TableRow, ...]:

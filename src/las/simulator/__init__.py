@@ -6,6 +6,16 @@ on the simulator — never the reverse. An architecture test enforces
 this boundary.
 """
 
+from las.simulator.faults import (
+    FAULTS_AT_POINT,
+    PROFILES,
+    FaultDecision,
+    FaultInjector,
+    FaultKind,
+    FaultProfile,
+    FaultRecord,
+    InteractionPoint,
+)
 from las.simulator.screens import (
     POPUP_SCREEN,
     SCREENS,
@@ -39,14 +49,22 @@ from las.simulator.system import (
 )
 
 __all__ = [
+    "FAULTS_AT_POINT",
     "POPUP_SCREEN",
+    "PROFILES",
     "SCREENS",
     "STATUS_TRANSITIONS",
     "AccountRecord",
     "Control",
     "ControlNotFoundError",
     "ControlType",
+    "FaultDecision",
+    "FaultInjector",
+    "FaultKind",
+    "FaultProfile",
+    "FaultRecord",
     "FixtureLoadError",
+    "InteractionPoint",
     "InvalidStatusError",
     "InvalidStatusTransitionError",
     "LegacySystem",

@@ -1,8 +1,9 @@
-"""Architecture test: the simulator package must stay fully independent."""
+"""Architecture tests: independence, no recovery logic, centralized faults."""
 
 from __future__ import annotations
 
 import ast
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -66,3 +67,29 @@ def test_importing_simulator_loads_no_forbidden_modules() -> None:
     assert result.stdout.strip() == "", (
         f"importing the simulator pulled in: {result.stdout.strip()}"
     )
+
+
+_RECOVERY_WORDS = re.compile(
+    r"\b(retry|retries|retried|retrying|backoff|recover|recovers|recovery)\b",
+    re.IGNORECASE,
+)
+
+
+def test_simulator_contains_no_recovery_logic() -> None:
+    """The simulator produces faults; handling them is the driver's job."""
+    for path in sorted(SIMULATOR_DIR.glob("*.py")):
+        text = path.read_text(encoding="utf-8")
+        match = _RECOVERY_WORDS.search(text)
+        assert match is None, f"{path.name} mentions '{match.group(0) if match else ''}'"
+
+
+def test_randomness_is_centralized_in_faults_module() -> None:
+    """Only faults.py may touch randomness; decisions are centralized."""
+    for path in sorted(SIMULATOR_DIR.glob("*.py")):
+        modules = iter_imports(path)
+        text = path.read_text(encoding="utf-8")
+        if path.name == "faults.py":
+            assert "random" in modules
+        else:
+            assert "random" not in modules, f"{path.name} imports random"
+            assert "random." not in text, f"{path.name} uses randomness directly"
