@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Project runtime output (regenerated per run)
+output/
+logs/
+
+# Local-only working files
+CLAUDE.md
+
+# OS / editor noise
+desktop.ini
+Thumbs.db
+.DS_Store
+.vscode/
+.idea/
