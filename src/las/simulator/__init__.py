@@ -38,6 +38,9 @@ from las.simulator.store import (
     UnknownRecordError,
 )
 from las.simulator.system import (
+    NO_MATCHES_MESSAGE,
+    SURPRISE_POPUP_MESSAGE,
+    Clock,
     ControlNotFoundError,
     LegacySystem,
     NavigationError,
@@ -50,8 +53,11 @@ from las.simulator.system import (
 
 __all__ = [
     "FAULTS_AT_POINT",
+    "NO_MATCHES_MESSAGE",
     "POPUP_SCREEN",
     "PROFILES",
+    "SURPRISE_POPUP_MESSAGE",
+    "Clock",
     "SCREENS",
     "STATUS_TRANSITIONS",
     "AccountRecord",

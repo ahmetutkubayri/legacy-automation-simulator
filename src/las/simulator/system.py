@@ -49,6 +49,9 @@ from las.simulator.store import OperationalRecord, RecordStore, SimulatorError
 #: Message shown by an injected surprise popup (invented, generic).
 SURPRISE_POPUP_MESSAGE = "Unexpected system notice. Dismiss to continue."
 
+#: Informational popup shown when a query matches nothing.
+NO_MATCHES_MESSAGE = "No matching records found."
+
 #: Buttons whose press is a distinct interaction point for fault decisions.
 _BUTTON_POINTS: dict[str, InteractionPoint] = {
     "run_query": InteractionPoint.QUERY_EXECUTION,
@@ -185,6 +188,11 @@ class LegacySystem:
     def fault_injector(self) -> FaultInjector:
         return self._faults
 
+    @property
+    def clock(self) -> Clock:
+        """The injected time source; callers share it to wait on this system."""
+        return self._clock
+
     def visible_controls(self) -> tuple[Control, ...]:
         if self._popup is not None:
             return POPUP_SCREEN.controls
@@ -308,7 +316,7 @@ class LegacySystem:
         matches = self._store.find_records(external_ref=external_ref, period=period)
         if not matches:
             self._status_texts["query_status"] = "0 records found"
-            self._open_popup("No matching records found.")
+            self._open_popup(NO_MATCHES_MESSAGE)
             return
         self._result_ids = [record.record_id for record in matches]
         self._scroll = 0
