@@ -29,7 +29,10 @@ classifiers = [
 ]
 dependencies = [
     "pandas>=2.2",
-    "openpyxl>=3.1",
+    # openpyxl is pinned exactly: its version is embedded in generated
+    # XLSX fixtures and affects byte-level reproducibility (see
+    # docs/DEVELOPMENT_PLAN.md, "Determinism and reproducibility").
+    "openpyxl==3.1.5",
     "pydantic>=2.7",
     "PyYAML>=6.0",
 ]
