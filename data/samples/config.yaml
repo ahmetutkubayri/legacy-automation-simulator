@@ -1,0 +1,50 @@
+# Sample configuration for the Legacy Automation Simulator.
+# Every value in this file is synthetic and invented for this project.
+
+seed: 42
+output_dir: output
+log_level: INFO
+
+simulator:
+  fault_profile: mild
+  fault_seed: 7
+  visible_rows: 12
+  buffer_rows: 3
+  busy_delay_min_ms: 5
+  busy_delay_max_ms: 50
+
+feeds:
+  - name: feed_alpha
+    path: data/samples/feed_alpha.xlsx
+    header_aliases:
+      "Record Id": record_id
+      "Account Reference": account_ref
+      "Quantity": amount
+      "Quantity Unit": unit
+      "Reporting Period": period
+  - name: feed_beta
+    path: data/samples/feed_beta.csv
+    header_aliases:
+      "REC_ID": record_id
+      "ACCT": account_ref
+      "AMT": amount
+      "UOM": unit
+      "PRD": period
+
+validation:
+  required_fields: [record_id, account_ref, amount, period]
+  record_id_pattern: "^EXT-\\d{5}$"
+  account_ref_pattern: "^ACC-\\d{6}$"
+  amount_min: 0.0
+  amount_max: 1000000.0
+  duplicate_key_fields: [record_id]
+
+match:
+  fuzzy_threshold: 0.87
+  review_threshold: 0.70
+
+report:
+  formats: [xlsx, json, html]
+  recipients: [ops-team@example.com]
+  variance_bands: [0.0, 1.0, 5.0]
+  streaming_row_threshold: 50000
