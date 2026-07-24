@@ -16,8 +16,13 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 #: Canonical field names that every feed's columns are mapped onto.
+#: ``record_id`` identifies an operational record (``OPR-########``);
+#: ``external_ref`` is the identifier supplied by an external feed
+#: (``EXT-#####``), resolved elsewhere to master-data account IDs
+#: (``ACC-######``, called ``account_ref`` only in master data);
+#: ``amount``/``unit``/``period`` carry the measured value.
 CANONICAL_FIELDS: frozenset[str] = frozenset(
-    {"record_id", "account_ref", "amount", "unit", "period"}
+    {"record_id", "external_ref", "amount", "unit", "period"}
 )
 
 #: The only email domain permitted anywhere in configuration values.
@@ -103,10 +108,10 @@ class ValidationConfig(StrictModel):
     """Rule parameters for validating ingested operational records."""
 
     required_fields: list[str] = Field(
-        default_factory=lambda: ["record_id", "account_ref", "amount"]
+        default_factory=lambda: ["record_id", "external_ref", "amount"]
     )
-    record_id_pattern: str = r"^EXT-\d{5}$"
-    account_ref_pattern: str = r"^ACC-\d{6}$"
+    record_id_pattern: str = r"^OPR-\d{8}$"
+    external_ref_pattern: str = r"^EXT-\d{5}$"
     amount_min: float = 0.0
     amount_max: float = 1_000_000.0
     duplicate_key_fields: list[str] = Field(default_factory=lambda: ["record_id"])
@@ -124,7 +129,7 @@ class ValidationConfig(StrictModel):
             raise ValueError(f"unknown field(s) {unknown} (canonical fields: {allowed})")
         return value
 
-    @field_validator("record_id_pattern", "account_ref_pattern")
+    @field_validator("record_id_pattern", "external_ref_pattern")
     @classmethod
     def _pattern_compiles(cls, value: str) -> str:
         try:

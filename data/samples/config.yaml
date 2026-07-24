@@ -13,12 +13,14 @@ simulator:
   busy_delay_min_ms: 5
   busy_delay_max_ms: 50
 
+# Feed paths are relative to the repository root and point at the
+# committed generated fixtures.
 feeds:
   - name: feed_alpha
     path: data/samples/feed_alpha.xlsx
     header_aliases:
       "Record Id": record_id
-      "Account Reference": account_ref
+      "External Reference": external_ref
       "Quantity": amount
       "Quantity Unit": unit
       "Reporting Period": period
@@ -26,15 +28,20 @@ feeds:
     path: data/samples/feed_beta.csv
     header_aliases:
       "REC_ID": record_id
-      "ACCT": account_ref
+      "EXT_REF": external_ref
       "AMT": amount
       "UOM": unit
       "PRD": period
 
+# Identifier schemes used by the generated fixtures:
+#   OPR-########  record_id      operational record IDs (feeds)
+#   EXT-#####     external_ref   identifiers supplied by external feeds,
+#                                mapped to accounts via account_links.csv
+#   ACC-######    account_ref    account master-data IDs (accounts.csv)
 validation:
-  required_fields: [record_id, account_ref, amount, period]
-  record_id_pattern: "^EXT-\\d{5}$"
-  account_ref_pattern: "^ACC-\\d{6}$"
+  required_fields: [record_id, external_ref, amount, period]
+  record_id_pattern: "^OPR-\\d{8}$"
+  external_ref_pattern: "^EXT-\\d{5}$"
   amount_min: 0.0
   amount_max: 1000000.0
   duplicate_key_fields: [record_id]

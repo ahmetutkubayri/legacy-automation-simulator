@@ -1,0 +1,41 @@
+account_ref,account_name,contact_email,street,city,postal_code,status
+ACC-100000,Demo Account 000000,contact-000000@example.com,100000 Example Avenue,Synthetic City 00,10000,CLOSED
+ACC-100001,Demo Account 000001,contact-000001@example.com,100001 Example Avenue,Synthetic City 01,10137,ACTIVE
+ACC-100002,Demo Account 000002,contact-000002@example.com,100002 Example Avenue,Synthetic City 02,10274,ACTIVE
+ACC-100003,Demo Account 000003,contact-000003@example.com,100003 Example Avenue,Synthetic City 03,10411,CLOSED
+ACC-100004,Demo Account 000004,contact-000004@example.com,100004 Example Avenue,Synthetic City 04,10548,DORMANT
+ACC-100005,Demo Account 000005,contact-000005@example.com,100005 Example Avenue,Synthetic City 05,10685,ACTIVE
+ACC-100006,Demo Account 000006,contact-000006@example.com,100006 Example Avenue,Synthetic City 06,10822,ACTIVE
+ACC-100007,Demo Account 000007,contact-000007@example.com,100007 Example Avenue,Synthetic City 07,10959,ACTIVE
+ACC-100008,Demo Account 000008,contact-000008@example.com,100008 Example Avenue,Synthetic City 08,11096,CLOSED
+ACC-100009,Demo Account 000009,contact-000009@example.com,100009 Example Avenue,Synthetic City 09,11233,ACTIVE
+ACC-100010,Demo Account 000010,contact-000010@example.com,100010 Example Avenue,Synthetic City 00,11370,CLOSED
+ACC-100011,Demo Account 000011,contact-000011@example.com,100011 Example Avenue,Synthetic City 01,11507,CLOSED
+ACC-100012,Demo Account 000012,contact-000012@example.com,100012 Example Avenue,Synthetic City 02,11644,CLOSED
+ACC-100013,Demo Account 000013,contact-000013@example.com,100013 Example Avenue,Synthetic City 03,11781,ACTIVE
+ACC-100014,Demo Account 000014,contact-000014@example.com,100014 Example Avenue,Synthetic City 04,11918,CLOSED
+ACC-100015,Demo Account 000015,contact-000015@example.com,100015 Example Avenue,Synthetic City 05,12055,DORMANT
+ACC-100016,Demo Account 000016,contact-000016@example.com,100016 Example Avenue,Synthetic City 06,12192,ACTIVE
+ACC-100017,Demo Account 000017,contact-000017@example.com,100017 Example Avenue,Synthetic City 07,12329,ACTIVE
+ACC-100018,Demo Account 000018,contact-000018@example.com,100018 Example Avenue,Synthetic City 08,12466,ACTIVE
+ACC-100019,Demo Account 000019,contact-000019@example.com,100019 Example Avenue,Synthetic City 09,12603,ACTIVE
+ACC-100020,Demo Account 000020,contact-000020@example.com,100020 Example Avenue,Synthetic City 00,12740,ACTIVE
+ACC-100021,Demo Account 000021,contact-000021@example.com,100021 Example Avenue,Synthetic City 01,12877,CLOSED
+ACC-100022,Demo Account 000022,contact-000022@example.com,100022 Example Avenue,Synthetic City 02,13014,CLOSED
+ACC-100023,Demo Account 000023,contact-000023@example.com,100023 Example Avenue,Synthetic City 03,13151,ACTIVE
+ACC-100024,Demo Account 000024,contact-000024@example.com,100024 Example Avenue,Synthetic City 04,13288,CLOSED
+ACC-100025,Demo Account 000025,contact-000025@example.com,100025 Example Avenue,Synthetic City 05,13425,ACTIVE
+ACC-100026,Demo Account 000026,contact-000026@example.com,100026 Example Avenue,Synthetic City 06,13562,CLOSED
+ACC-100027,Demo Account 000027,contact-000027@example.com,100027 Example Avenue,Synthetic City 07,13699,CLOSED
+ACC-100028,Demo Account 000028,contact-000028@example.com,100028 Example Avenue,Synthetic City 08,13836,CLOSED
+ACC-100029,Demo Account 000029,contact-000029@example.com,100029 Example Avenue,Synthetic City 09,13973,CLOSED
+ACC-100030,Demo Account 000030,contact-000030@example.com,100030 Example Avenue,Synthetic City 00,14110,DORMANT
+ACC-100031,Demo Account 000031,contact-000031@example.com,100031 Example Avenue,Synthetic City 01,14247,ACTIVE
+ACC-100032,Demo Account 000032,contact-000032@example.com,100032 Example Avenue,Synthetic City 02,14384,DORMANT
+ACC-100033,Demo Account 000033,contact-000033@example.com,100033 Example Avenue,Synthetic City 03,14521,CLOSED
+ACC-100034,Demo Account 000034,contact-000034@example.com,100034 Example Avenue,Synthetic City 04,14658,DORMANT
+ACC-100035,Demo Account 000035,contact-000035@example.com,100035 Example Avenue,Synthetic City 05,14795,ACTIVE
+ACC-100036,Demo Account 000036,contact-000036@example.com,100036 Example Avenue,Synthetic City 06,14932,ACTIVE
+ACC-100037,Demo Account 000037,contact-000037@example.com,100037 Example Avenue,Synthetic City 07,15069,CLOSED
+ACC-100038,Synthetic Twin Account 900001,contact-000038@example.com,900001 Example Avenue,Synthetic City 99,99210,ACTIVE
+ACC-100039,Synthetic Twin Account 900002,contact-000039@example.com,900002 Example Avenue,Synthetic City 99,99211,ACTIVE

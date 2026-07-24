@@ -25,7 +25,7 @@ def test_minimal_config_applies_defaults(base_config: dict) -> None:
     assert config.log_level == "INFO"
     assert config.simulator.fault_profile == "none"
     assert config.simulator.visible_rows == 12
-    assert config.validation.required_fields == ["record_id", "account_ref", "amount"]
+    assert config.validation.required_fields == ["record_id", "external_ref", "amount"]
     assert config.match.fuzzy_threshold == pytest.approx(0.87)
     assert config.match.review_threshold == pytest.approx(0.70)
     assert config.report.formats == ["xlsx", "json", "html"]
@@ -258,5 +258,5 @@ def test_absolute_output_dir_is_rejected(base_config: dict) -> None:
 
 
 def test_canonical_fields_are_stable() -> None:
-    expected = {"record_id", "account_ref", "amount", "unit", "period"}
+    expected = {"record_id", "external_ref", "amount", "unit", "period"}
     assert frozenset(expected) == CANONICAL_FIELDS
