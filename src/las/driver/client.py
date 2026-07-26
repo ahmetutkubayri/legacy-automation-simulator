@@ -59,6 +59,7 @@ from las.simulator import (
     ScreenId,
     SimulatorError,
     SystemBusyError,
+    TableRow,
 )
 
 T = TypeVar("T")
@@ -416,6 +417,22 @@ class LegacyDriver:
         actual, _ = self._interact("scroll_results", lambda: self.system.scroll_table(position))
         self.wait_until_idle()
         return actual
+
+    def read_table_rows(self) -> tuple[TableRow, ...]:
+        """Read the visible results window, riding out transient conditions.
+
+        Placeholder rows are returned exactly as the widget serves them;
+        interpreting them is the extraction algorithm's job.
+        """
+        self.wait_until_idle()
+        rows, _ = self._interact("read_table_rows", self.system.read_table_rows)
+        return rows
+
+    def table_row_count(self) -> int:
+        """The count the widget reports: real rows plus its trailing buffer."""
+        self.wait_until_idle()
+        count, _ = self._interact("table_row_count", self.system.table_row_count)
+        return count
 
     def recover(self):
         """Recover to the main menu; see las.driver.recovery."""
