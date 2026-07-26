@@ -1,1 +1,13 @@
 * text=auto
+
+# Committed synthetic fixtures are byte-reproducible from their seed, and
+# docs/DEVELOPMENT_PLAN.md pins one SHA-256 per file for every platform.
+# The rule above normalizes text to LF in the repository but converts it to
+# the platform's native ending on checkout, which is CRLF on Windows and
+# changes those bytes. Pin LF on checkout instead, so the working tree is
+# byte-identical to the committed blob everywhere.
+#
+# The last matching pattern wins, so this must stay below `* text=auto`.
+# feed_alpha.xlsx needs no rule: Git detects it as binary and never converts
+# it, which is why only the CSV hashes drifted.
+data/samples/*.csv text eol=lf
