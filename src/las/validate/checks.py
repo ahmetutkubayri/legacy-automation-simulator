@@ -81,17 +81,27 @@ def check_identifier(text: str, pattern: re.Pattern[str], code: str) -> str | No
     return None if pattern.fullmatch(text) else code
 
 
-def check_amount(text: str, *, minimum: Decimal, maximum: Decimal) -> str | None:
-    """Classify an amount as malformed, non-finite, out of range, or fine.
+def parse_amount(text: str | None) -> Decimal | None:
+    """The exact decimal a value denotes, or ``None`` when it denotes none.
 
-    Parsing is exact: the text goes through :class:`~decimal.Decimal`, never
-    through a binary float, so nothing is rounded and the caller's original
-    string stays authoritative.
+    This is the single place the project turns amount text into a number, so
+    that every stage measures the same thing. The grammar is the strict one
+    described above — plain ASCII decimal notation, nothing else — and parsing
+    goes straight to :class:`~decimal.Decimal`, never through a binary float,
+    so no value is rounded and the caller's original string stays
+    authoritative.
+
+    Range is deliberately not considered: how large an amount may be is a
+    policy question, whereas this function answers only what the text says.
+    Nothing about the offending value is reported, because a caller that needs
+    to explain a failure has its own fixed vocabulary for that.
     """
+    if text is None:
+        return None
     if NON_FINITE_PATTERN.fullmatch(text):
-        return CODE_AMOUNT_NOT_FINITE
+        return None
     if not AMOUNT_PATTERN.fullmatch(text):
-        return CODE_AMOUNT_NOT_DECIMAL
+        return None
     # The two guards below are unreachable while AMOUNT_PATTERN stays as
     # narrow as it is: plain decimal text always parses, and always parses to
     # a finite value. They remain so that loosening the grammar can never turn
@@ -99,9 +109,24 @@ def check_amount(text: str, *, minimum: Decimal, maximum: Decimal) -> str | None
     try:
         value = Decimal(text)
     except InvalidOperation:  # pragma: no cover - defence in depth
-        return CODE_AMOUNT_NOT_DECIMAL
+        return None
     if not value.is_finite():  # pragma: no cover - defence in depth
+        return None
+    return value
+
+
+def check_amount(text: str, *, minimum: Decimal, maximum: Decimal) -> str | None:
+    """Classify an amount as malformed, non-finite, out of range, or fine.
+
+    Non-finite text is recognised first so that it earns its own code rather
+    than looking like ordinary malformed text; everything else is decided by
+    the shared :func:`parse_amount` grammar, then by the configured range.
+    """
+    if NON_FINITE_PATTERN.fullmatch(text):
         return CODE_AMOUNT_NOT_FINITE
+    value = parse_amount(text)
+    if value is None:
+        return CODE_AMOUNT_NOT_DECIMAL
     if value < minimum or value > maximum:
         return CODE_AMOUNT_OUT_OF_RANGE
     return None

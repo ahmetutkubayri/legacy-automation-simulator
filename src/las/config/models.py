@@ -165,14 +165,36 @@ class MatchConfig(StrictModel):
 
 
 class ReportConfig(StrictModel):
-    """Output formats, synthetic recipients, and variance banding."""
+    """Output formats, synthetic recipients, and variance banding.
+
+    ``variance_bands`` are **absolute amount-difference upper bounds**,
+    expressed in the shared validated unit of the reconciliation group
+    they judge. They are not percentages: no denominator is involved and
+    no division is ever performed, so a group whose totals are zero needs
+    no special case. Reconciliation converts each value once through
+    ``Decimal(str(value))`` and compares exactly.
+
+    The ladder ascends strictly from exactly ``0``, and every nonzero
+    upper edge is **inclusive**. Read against the sample ``[0.0, 1.0,
+    5.0]``: a difference of ``0`` is balanced; ``0 < d <= 1`` and
+    ``1 < d <= 5`` are within tolerance, selecting the ``1`` and ``5``
+    bands respectively; and ``d > 5`` is a mismatch, inside no band.
+
+    They live here because reporting colours by the same ladder it
+    reconciles against; it is one set of bounds, read in both places.
+    """
 
     formats: list[ReportFormat] = Field(
         default_factory=lambda: ["xlsx", "json", "html"], min_length=1
     )
     recipients: list[str] = Field(default_factory=lambda: ["ops-team@example.com"])
     variance_bands: list[float] = Field(
-        default_factory=lambda: [0.0, 1.0, 5.0], min_length=1
+        default_factory=lambda: [0.0, 1.0, 5.0],
+        min_length=1,
+        description=(
+            "Absolute amount-difference upper bounds in the group's shared unit, "
+            "ascending from zero, with inclusive upper edges. Not percentages."
+        ),
     )
     streaming_row_threshold: int = Field(default=50_000, ge=1_000, le=1_048_575)
 

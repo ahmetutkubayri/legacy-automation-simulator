@@ -29,6 +29,7 @@ from las.validate.checks import (
     check_unit,
     compile_pattern,
     is_blank,
+    parse_amount,
 )
 from las.validate.engine import validate_ingest_result, validate_rows
 from las.validate.errors import (
@@ -126,6 +127,7 @@ __all__ = [
     "default_rule_set",
     "is_blank",
     "master_data_policy",
+    "parse_amount",
     "policy_from_config",
     "summarize",
     "validate_ingest_result",

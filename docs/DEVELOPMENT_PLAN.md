@@ -172,9 +172,37 @@ static-safety tests remain green; confidentiality gate clean.
 * **T11 Matching** — ID normalization, exact matching, fuzzy scoring
   with config thresholds, `needs_review` bucket; nothing below the
   acceptance threshold is silently matched.
-* **T12 Reconciliation** — per-account aggregation of both feeds vs the
-  simulator ledger; variance bands from config; missing-in-feed /
-  missing-in-system detection; hand-computed fixture assertions.
+* **T12 Reconciliation** — aggregation of both feeds, combined as one
+  `FEED` side, against the simulator ledger as one `SYSTEM` side. Feed
+  alpha and feed beta are two sources contributing to the same side, not
+  opposing sides. The ledger crosses the boundary as a neutral immutable
+  `SystemLedgerRow` DTO carrying only the fields reconciliation needs,
+  with its `account_ref` already resolved; `las.reconcile` imports
+  neither the driver nor the simulator, and T14 owns the adapter that
+  builds those rows from public driver `ExtractedRow` values using the
+  existing master index for exact external-ref-to-account resolution.
+  Grouping is by `account_ref` **and** `period` — never by account
+  alone, and never with `unit` in the key, because a unit conflict must
+  surface as a verdict rather than hide in two separate groups. Outcome
+  precedence is presence, then units, then arithmetic: a missing side
+  and a unit mismatch each publish no variance at all, only per-unit
+  subtotals. Duplicate rows each contribute; nothing is deduplicated —
+  two business-identical rows at different physical rows are two real
+  observations. That is distinct from *replay*: one physical feed row
+  (source, worksheet, physical row number), one feed batch, or one
+  system ledger record (`record_id`, and always `position`) supplied
+  twice is refused before aggregation, because it would double a total
+  while looking exactly like ordinary duplicate data. Input identity is
+  never part of the business group key. Arithmetic is exact with no
+  precision ceiling: every amount the T10 parser accepts is aggregatable,
+  summed by rescaling to a shared exponent and adding unbounded integer
+  coefficients, so no result depends on the process-wide decimal context.
+  Variance bands come from config and are **absolute amount differences**
+  in the group's shared unit — not percentages, no denominator, no
+  division — converted through `Decimal(str(value))`, ascending from
+  exactly `0`, with every nonzero upper edge **inclusive**. Every feed
+  row is accounted for exactly once as a contribution or an explicitly
+  unresolved row; hand-computed fixture assertions.
 * **T13 Reporting** — styled multi-sheet XLSX (summary, exceptions,
   reconciliation with conditional fills, review queue; streaming path
   for large sheets), JSON summary, self-contained HTML summary
