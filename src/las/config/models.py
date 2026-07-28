@@ -167,6 +167,17 @@ class MatchConfig(StrictModel):
 class ReportConfig(StrictModel):
     """Output formats, synthetic recipients, and variance banding.
 
+    These four values are everything reporting takes from configuration.
+    Sheet names, column names, column order and every colour belong to
+    the contract in ``docs/REPORTING_CONTRACT.md``, not to config, so
+    that two runs of this project produce the same report shape.
+
+    ``formats`` fixes both which artifacts are produced and the order
+    they are returned in. ``recipients`` is report *metadata*: it is
+    shown on the summary sheet and in both summary documents, and no
+    mail is ever sent. ``streaming_row_threshold`` selects write-only
+    workbook construction when any detail sheet reaches it.
+
     ``variance_bands`` are **absolute amount-difference upper bounds**,
     expressed in the shared validated unit of the reconciliation group
     they judge. They are not percentages: no denominator is involved and

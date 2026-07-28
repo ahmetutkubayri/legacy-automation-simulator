@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "recipients": [
+    "ops-team@example.com"
+  ],
+  "accounting": {
+    "feed_rows_input": 12,
+    "system_rows_input": 5,
+    "feed_contributions": 6,
+    "system_contributions": 5,
+    "unresolved_rows": 6,
+    "group_count": 6,
+    "exception_group_count": 4,
+    "review_queue_count": 6
+  },
+  "group_outcomes": [
+    {
+      "outcome": "balanced",
+      "count": 1
+    },
+    {
+      "outcome": "within_tolerance",
+      "count": 1
+    },
+    {
+      "outcome": "mismatch",
+      "count": 1
+    },
+    {
+      "outcome": "unit_mismatch",
+      "count": 1
+    },
+    {
+      "outcome": "missing_in_feed",
+      "count": 1
+    },
+    {
+      "outcome": "missing_in_system",
+      "count": 1
+    }
+  ],
+  "group_reasons": [
+    {
+      "reason_code": "no_feed_contribution",
+      "count": 1
+    },
+    {
+      "reason_code": "no_system_contribution",
+      "count": 1
+    },
+    {
+      "reason_code": "unit_differs_across_sides",
+      "count": 1
+    },
+    {
+      "reason_code": "multiple_units_on_one_side",
+      "count": 0
+    },
+    {
+      "reason_code": "totals_equal",
+      "count": 1
+    },
+    {
+      "reason_code": "within_variance_band",
+      "count": 1
+    },
+    {
+      "reason_code": "outside_variance_bands",
+      "count": 1
+    }
+  ],
+  "unresolved_reasons": [
+    {
+      "reason_code": "match_needs_review",
+      "count": 1
+    },
+    {
+      "reason_code": "match_unmatched",
+      "count": 1
+    },
+    {
+      "reason_code": "match_ineligible",
+      "count": 1
+    },
+    {
+      "reason_code": "invalid_amount",
+      "count": 1
+    },
+    {
+      "reason_code": "invalid_unit",
+      "count": 1
+    },
+    {
+      "reason_code": "invalid_period",
+      "count": 1
+    }
+  ],
+  "variance_bands": [
+    {
+      "upper_bound": "0",
+      "count": 1
+    },
+    {
+      "upper_bound": "1",
+      "count": 1
+    },
+    {
+      "upper_bound": "5",
+      "count": 0
+    }
+  ]
+}

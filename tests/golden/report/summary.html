@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Legacy Automation Simulator — Reconciliation Summary</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #222222; background: #FFFFFF; }
+    table { border-collapse: collapse; margin-bottom: 1.5rem; }
+    th, td { border: 1px solid #B7B7B7; padding: 0.3rem 0.6rem; text-align: left; }
+    th { background: #1F4E78; color: #FFFFFF; }
+    tr.outcome-missing_in_feed td { background: #DDEBF7; }
+    tr.outcome-missing_in_system td { background: #E4DFEC; }
+    tr.outcome-unit_mismatch td { background: #FCE5CD; }
+    tr.outcome-balanced td { background: #E2F0D9; }
+    tr.outcome-within_tolerance td { background: #FFF2CC; }
+    tr.outcome-mismatch td { background: #F4CCCC; }
+  </style>
+</head>
+<body>
+  <h1>Legacy Automation Simulator — Reconciliation Summary</h1>
+  <p>Recipients: ops-team@example.com</p>
+  <h2>Accounting</h2>
+  <table>
+    <thead>
+      <tr><th>metric</th><th>value</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>feed_rows_input</td><td>12</td></tr>
+      <tr><td>system_rows_input</td><td>5</td></tr>
+      <tr><td>feed_contributions</td><td>6</td></tr>
+      <tr><td>system_contributions</td><td>5</td></tr>
+      <tr><td>unresolved_rows</td><td>6</td></tr>
+      <tr><td>group_count</td><td>6</td></tr>
+      <tr><td>exception_group_count</td><td>4</td></tr>
+      <tr><td>review_queue_count</td><td>6</td></tr>
+    </tbody>
+  </table>
+  <h2>Group outcomes</h2>
+  <table>
+    <thead>
+      <tr><th>metric</th><th>value</th></tr>
+    </thead>
+    <tbody>
+      <tr class="outcome-balanced"><td>balanced</td><td>1</td></tr>
+      <tr class="outcome-within_tolerance"><td>within_tolerance</td><td>1</td></tr>
+      <tr class="outcome-mismatch"><td>mismatch</td><td>1</td></tr>
+      <tr class="outcome-unit_mismatch"><td>unit_mismatch</td><td>1</td></tr>
+      <tr class="outcome-missing_in_feed"><td>missing_in_feed</td><td>1</td></tr>
+      <tr class="outcome-missing_in_system"><td>missing_in_system</td><td>1</td></tr>
+    </tbody>
+  </table>
+  <h2>Group reasons</h2>
+  <table>
+    <thead>
+      <tr><th>metric</th><th>value</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>no_feed_contribution</td><td>1</td></tr>
+      <tr><td>no_system_contribution</td><td>1</td></tr>
+      <tr><td>unit_differs_across_sides</td><td>1</td></tr>
+      <tr><td>multiple_units_on_one_side</td><td>0</td></tr>
+      <tr><td>totals_equal</td><td>1</td></tr>
+      <tr><td>within_variance_band</td><td>1</td></tr>
+      <tr><td>outside_variance_bands</td><td>1</td></tr>
+    </tbody>
+  </table>
+  <h2>Unresolved reasons</h2>
+  <table>
+    <thead>
+      <tr><th>metric</th><th>value</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>match_needs_review</td><td>1</td></tr>
+      <tr><td>match_unmatched</td><td>1</td></tr>
+      <tr><td>match_ineligible</td><td>1</td></tr>
+      <tr><td>invalid_amount</td><td>1</td></tr>
+      <tr><td>invalid_unit</td><td>1</td></tr>
+      <tr><td>invalid_period</td><td>1</td></tr>
+    </tbody>
+  </table>
+  <h2>Variance bands</h2>
+  <table>
+    <thead>
+      <tr><th>metric</th><th>value</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>upper_bound:0</td><td>1</td></tr>
+      <tr><td>upper_bound:1</td><td>1</td></tr>
+      <tr><td>upper_bound:5</td><td>0</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

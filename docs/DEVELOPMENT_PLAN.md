@@ -203,10 +203,20 @@ static-safety tests remain green; confidentiality gate clean.
   exactly `0`, with every nonzero upper edge **inclusive**. Every feed
   row is accounted for exactly once as a contribution or an explicitly
   unresolved row; hand-computed fixture assertions.
-* **T13 Reporting** — styled multi-sheet XLSX (summary, exceptions,
-  reconciliation with conditional fills, review queue; streaming path
-  for large sheets), JSON summary, self-contained HTML summary
-  (recipients from config, example.com only); golden-file content tests.
+* **T13 Reporting** — three artifacts rendered **entirely in memory**
+  from one report model: a four-sheet XLSX (`Summary`, `Exceptions`,
+  `Reconciliation` with static outcome fills, `Review Queue`; write-only
+  streaming path above the configured row threshold), a JSON summary,
+  and a self-contained HTML summary. Recipients come from config
+  (`example.com` only) and are metadata only — no mail is ever sent.
+  T13 chooses no filename and writes no file; T14 writes the returned
+  bytes to `RunConfig.output_dir`. Decimals render as canonical text in
+  every format, so no total is rounded through a spreadsheet float.
+  JSON and HTML are byte-identical across renders; XLSX is semantically
+  identical, including between the standard and streaming paths.
+  Golden-file content tests. Sheet membership, column order, colours,
+  the JSON schema and the decimal rules are fixed by
+  `docs/REPORTING_CONTRACT.md`, which is the authoritative T13 contract.
 * **T14 Pipeline + CLI** — stage orchestrator (extract → ingest →
   validate → match → reconcile → report → verify) wired to config,
   audit trail, and logging; `las demo | run | generate-fixtures`;
