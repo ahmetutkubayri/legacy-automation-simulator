@@ -40,6 +40,21 @@ EXPECTED_CSV_FIXTURES = frozenset(
     }
 )
 
+#: The T13 golden files, compared byte for byte against renderer output whose
+#: contract fixes it at LF. They need the same narrow rule the CSVs got.
+REPORT_GOLDEN_PREFIX = "tests/golden/report"
+EXPECTED_REPORT_GOLDENS = frozenset(
+    {
+        f"{REPORT_GOLDEN_PREFIX}/summary.json",
+        f"{REPORT_GOLDEN_PREFIX}/summary.html",
+        f"{REPORT_GOLDEN_PREFIX}/workbook_semantics.json",
+    }
+)
+REPORT_GOLDEN_RULES = (
+    f"{REPORT_GOLDEN_PREFIX}/*.json text eol=lf",
+    f"{REPORT_GOLDEN_PREFIX}/*.html text eol=lf",
+)
+
 
 def git(*arguments: str) -> bytes:
     """Run a Git command in the repository and return raw stdout."""
@@ -68,6 +83,23 @@ def committed_csv_fixtures() -> tuple[str, ...]:
     paths = tuple(sorted(entry for entry in listing.split("\0") if entry))
     assert paths, "no committed CSV fixtures were found"
     return paths
+
+
+@pytest.fixture(scope="module")
+def committed_report_goldens() -> tuple[str, ...]:
+    listing = git("ls-files", "-z", "--", f"{REPORT_GOLDEN_PREFIX}/*").decode("utf-8")
+    paths = tuple(sorted(entry for entry in listing.split("\0") if entry))
+    assert paths, "no committed report golden files were found"
+    return paths
+
+
+def gitattributes_rules() -> list[str]:
+    """The declared rules, in file order, without comments or blank lines."""
+    return [
+        line.strip()
+        for line in (REPO_ROOT / ".gitattributes").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
 
 
 def attributes(path: str, *names: str) -> dict[str, str]:
@@ -127,11 +159,7 @@ def test_csv_fixtures_check_out_with_lf_on_this_platform(
 
 def test_the_narrow_rule_is_declared_after_the_broad_one() -> None:
     """Git resolves attributes with the last matching pattern, so order matters."""
-    lines = [
-        line.strip()
-        for line in (REPO_ROOT / ".gitattributes").read_text(encoding="utf-8").splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
-    ]
+    lines = gitattributes_rules()
     assert "* text=auto" in lines
     narrow = f"{SAMPLES_PREFIX}/*.csv text eol=lf"
     assert narrow in lines, f"missing rule: {narrow}"
@@ -205,6 +233,102 @@ def test_xlsx_fixture_needs_no_eol_rule_of_its_own() -> None:
         assert not stripped.startswith(f"{SAMPLES_PREFIX}/*.xlsx"), (
             "the workbook must not be given an eol rule"
         )
+
+
+# --- the T13 report goldens -----------------------------------------------------
+#
+# The same defect, in a second place. The golden files are compared byte for
+# byte against renderer output, and the reporting contract fixes that output at
+# LF everywhere; a CRLF checkout on Windows made the comparison fail while the
+# report content was identical. These tests pin the narrow rules that fix it.
+
+
+def test_the_expected_report_goldens_are_committed(
+    committed_report_goldens: tuple[str, ...],
+) -> None:
+    assert set(committed_report_goldens) == EXPECTED_REPORT_GOLDENS
+
+
+def test_gitattributes_declares_both_report_golden_rules() -> None:
+    lines = gitattributes_rules()
+    for rule in REPORT_GOLDEN_RULES:
+        assert rule in lines, f"missing rule: {rule}"
+
+
+def test_the_report_golden_rules_come_after_the_broad_rule() -> None:
+    """Git resolves attributes with the last matching pattern, so order matters."""
+    lines = gitattributes_rules()
+    broad = lines.index("* text=auto")
+    for rule in REPORT_GOLDEN_RULES:
+        assert lines.index(rule) > broad, f"{rule} would be overridden by * text=auto"
+
+
+def test_nothing_after_the_report_rules_re_broadens_them() -> None:
+    lines = gitattributes_rules()
+    last = max(lines.index(rule) for rule in REPORT_GOLDEN_RULES)
+    for line in lines[last + 1 :]:
+        assert not line.startswith("*"), f"a later rule may override the fix: {line}"
+
+
+def test_every_report_golden_resolves_to_text_set_and_eol_lf(
+    committed_report_goldens: tuple[str, ...],
+) -> None:
+    for path in committed_report_goldens:
+        applied = attributes(path, "text", "eol")
+        assert applied["text"] == "set", f"{path} has text={applied['text']}, not set"
+        assert applied["eol"] == "lf", f"{path} has eol={applied['eol']}, not lf"
+
+
+def test_no_rule_applies_crlf_to_the_report_golden_directory(
+    committed_report_goldens: tuple[str, ...],
+) -> None:
+    for path in committed_report_goldens:
+        assert attributes(path, "eol")["eol"] != "crlf"
+    for line in gitattributes_rules():
+        if line.startswith(REPORT_GOLDEN_PREFIX) or line.startswith("*"):
+            assert "eol=crlf" not in line, f"a rule forces CRLF: {line}"
+
+
+def test_report_goldens_are_stored_and_checked_out_as_lf(
+    committed_report_goldens: tuple[str, ...],
+) -> None:
+    """Index and working tree agree, whichever platform is running."""
+    for path in committed_report_goldens:
+        index_eol, worktree_eol = eol_state(path)
+        assert index_eol == "lf", f"{path} is stored as {index_eol}"
+        assert worktree_eol == "lf", f"{path} checked out as {worktree_eol}"
+
+
+def test_report_golden_blobs_contain_lf_and_no_carriage_return(
+    committed_report_goldens: tuple[str, ...],
+) -> None:
+    """What Git stored, read straight from the index, on any host."""
+    for path in committed_report_goldens:
+        blob = committed_blob(path)
+        assert blob, f"{path} is empty"
+        assert b"\n" in blob, f"{path} has no line breaks to check"
+        assert b"\r\n" not in blob, f"{path} contains CRLF"
+        assert b"\r" not in blob, f"{path} contains a carriage return"
+
+
+def test_report_goldens_on_disk_match_their_committed_blobs(
+    committed_report_goldens: tuple[str, ...],
+) -> None:
+    for path in committed_report_goldens:
+        blob = committed_blob(path)
+        on_disk = (REPO_ROOT / path).read_bytes()
+        assert hashlib.sha256(on_disk).hexdigest() == hashlib.sha256(blob).hexdigest(), (
+            f"{path} on disk differs from the committed blob"
+        )
+
+
+def test_the_csv_fixture_rule_is_unchanged_by_the_report_rules() -> None:
+    """The earlier fix must survive: both narrow rules coexist."""
+    lines = gitattributes_rules()
+    csv_rule = f"{SAMPLES_PREFIX}/*.csv text eol=lf"
+    assert csv_rule in lines
+    assert lines.index(csv_rule) > lines.index("* text=auto")
+    assert all(lines.index(rule) > lines.index("* text=auto") for rule in REPORT_GOLDEN_RULES)
 
 
 # --- the tests themselves change nothing --------------------------------------

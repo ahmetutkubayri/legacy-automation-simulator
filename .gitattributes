@@ -11,3 +11,14 @@
 # feed_alpha.xlsx needs no rule: Git detects it as binary and never converts
 # it, which is why only the CSV hashes drifted.
 data/samples/*.csv text eol=lf
+
+# The T13 golden files are compared byte for byte against renderer output, and
+# the reporting contract fixes that output at LF on every platform. The broad
+# rule above would hand Windows a CRLF checkout of these blobs, so the goldens
+# would differ from the bytes they are meant to pin — the same drift the CSV
+# fixtures hit, in a different place. Pin LF on checkout here too.
+#
+# workbook_semantics.json is matched by the .json rule; it is a text snapshot
+# of a workbook, not a workbook, so no binary rule belongs here.
+tests/golden/report/*.json text eol=lf
+tests/golden/report/*.html text eol=lf
