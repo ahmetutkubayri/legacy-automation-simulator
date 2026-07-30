@@ -36,8 +36,9 @@ src/las/
 ├── logging_setup.py                       # console + per-run file logging
 ├── simulator/ store.py, screens.py, system.py, faults.py
 ├── driver/    waits.py, client.py, recovery.py
-└── (upcoming) ingest/ validate/ match/ reconcile/ report/ pipeline.py
-tests/                      # 280 tests, all deterministic, no real sleeps
+├── ingest/ validate/ match/ reconcile/ report/   # the business layers
+└── pipeline/  models.py, adapters.py, engine.py, writer.py, errors.py
+tests/                      # deterministic throughout, no real sleeps
 data/samples/               # committed seeded synthetic fixtures + config.yaml
 scripts/generate_fixtures.py
 docs/DEVELOPMENT_PLAN.md    # this file
@@ -99,12 +100,13 @@ eeebfb192c3902e49e528eb933810e82fca1f7ac1e497c9b415cd3f14060643f  data/samples/f
 
 ## Commands
 
+Run inside a Python 3.11 or 3.12 environment:
+
 ```bash
-python -m venv .venv && . .venv/bin/activate   # (Windows: .venv\Scripts\activate)
-pip install -e .[dev]        # install with dev tools
-ruff check src tests scripts # lint
-pytest --cov=las --cov-report=term-missing     # full suite with coverage
-python scripts/generate_fixtures.py --seed 42  # regenerate committed fixtures
+python -m pip install -e ".[dev]"               # install with dev tools
+ruff check src tests scripts                    # lint
+pytest --cov=las --cov-report=term-missing      # full suite with coverage
+python scripts/generate_fixtures.py --seed 42   # regenerate committed fixtures
 python scripts/generate_fixtures.py --seed 42 --output-dir temporary-output/check  # spot-check
 ```
 
@@ -123,44 +125,55 @@ files still match the hashes above.
 | T5 | `3c0ba20518fd1460b7d7d76e0fab0de849dd325e` | Simulator core: store, screens, LegacySystem state machine |
 | T6 | `38255a913b90bc9ff1fd10d9a220f8f9eaea1c84` | Deterministic fault injection (none/mild/hostile profiles) |
 | T7 | `1f6089fc924cc9290b8edc4b7f19a635774d7efe` | Resilient driver: retry policy, waits, fallback lookup, recovery |
+| T8 | `52662b0a2752edd8c25703ba8a67aedc137ccd62` | Paginated extraction with proven completeness; dry-run-safe write-back |
+| T9 | `5562b9fb18414b136a9a33b4372666ad5a0d08d9` | CSV/XLSX readers, header normalization, alias resolution |
+| T10 | `b4692902a375e2ff75ff40bd1009053f4ceebf80` | Deterministic validation engine with stable issue ordering |
+| T11 | `185d8073456a8c6ea1fd488cc472ad992ad3a375` | Deterministic entity matching with explicit review outcomes |
+| T12 | `a9ccbd0b43f85837d483839aa253c626786e8dd4` | Exact feed-to-system reconciliation with replay protection |
+| T13 | `d3eddb4c74e359ed1e8fd4304b7b8db69ba33d7b` | Deterministic XLSX, JSON, and HTML reporting |
+| T14 | `e9d5525fd1bb080c415799c7cdb45e98a28de1a0` | End-to-end pipeline orchestration, atomic publication, CLI |
+| T15 | — | README, architecture document, documentation-conformance tests |
 
-Current state: 280 tests passing (~8 s), repository coverage 99%
-(driver, simulator, config, audit at 100%; only the CLI `__main__`
-guard uncovered). Nothing pushed to a remote yet.
+A commit cannot record its own identifier, so the T15 row carries none. Git
+history is the authority for which commit delivered which task; the hashes above
+are a convenience for reading the plan alongside the log, not a second source of
+truth.
 
-## Next task: T8 — paginated extraction and dry-run write-back
+Narrow maintenance passes sit between the numbered tasks. They are
+prerequisites, not roadmap entries, and carry no task number:
 
-Create `src/las/driver/tables.py` plus focused tests.
+| Commit | Summary |
+|---|---|
+| `38f0a2327f2c98e074cdb62a142a6945cdc4f366` | Add this plan and pin `openpyxl` for fixture reproducibility |
+| `8e969d21b7be036b66cc10dab883e85534a9cbb9` | Enforce LF checkout for the synthetic CSV fixtures |
+| `9ef603dd29507decafa1919456e03c0b51f3dd55` | Enforce LF checkout for the report golden files |
+| `0d4682f00a03433f7819da539725ab5ba1f9d297` | Resolve the installed CLI launcher through the active scheme's scripts directory, so the subprocess suite runs on Windows |
+| `fa576a3f6d7657d87bcf339877c48a8e91fd79cb` | Use a `default_factory` for the one mappingproxy dataclass default Python 3.11 rejects; drop the unused `pandas` requirement; widen CI to Python 3.11 and 3.12 and lint `scripts` |
 
-Requirements:
+Current state: the full suite is green on Ubuntu and Windows across
+Python 3.11 and 3.12, with production coverage high enough that the
+only uncovered lines are defensive branches unreachable by
+construction. Exact counts are deliberately not written here — they
+change with every task, and the suite itself is the authority.
 
-* **Full-table extraction** through the visible window of the results
-  table: scroll positioning, duplicate-position suppression, an
-  empty/buffer-row sentinel with a consecutive-empty cutoff, detection
-  of stalled scrolls (position unchanged after a request) with bounded
-  re-attempts, and a per-extraction deadline on the injected clock.
-* Extraction must return typed immutable rows in logical order and be
-  **provably equal to store ground truth** for table sizes 0 (via the
-  zero-match query path), 1, window−1, window, window+1, and multiple
-  pages — under the `none` and `mild` fault profiles.
-* **Write-back**: `update_status(row, new_status, dry_run=True)`
-  defaulting to no mutation. Dry-run reports the intended change
-  without touching the store (snapshot-verified). Real writes go
-  through the detail screen (open record → set status field → apply),
-  respect the driver's popup policy (validation rejections surface as
-  typed errors, never silently dismissed), and are audit-visible.
-* No simulator changes that weaken the fault model; the driver must not
-  touch the fault injector.
-* Property-style test across random seeds/window sizes; a stalled-scroll
-  storm must produce either a complete extraction or a typed bounded
-  error, never a hang or silent partial result treated as complete.
+## Next task: T16 — pre-publication sweep and release readiness
 
-Definition of done: ruff clean; full suite green with `tables.py` at
-≥95% coverage (aim 100%); extraction-equality tests pass for all
-boundary sizes; dry-run leaves snapshots byte-equal; architecture and
-static-safety tests remain green; confidentiality gate clean.
+T16 is the only remaining task. It adds no feature: it audits what is
+already here and decides whether the repository is fit to publish. Its
+checklist is at the end of this document — a full-history secret scan,
+generic pattern scans over every tracked file, fixture regeneration
+against the pinned hashes, metadata review, verification that every
+documented command still behaves as written, a fresh-clone run on both
+operating systems, and only then a release tag.
 
-## Remaining tasks after T8
+Nothing in T16 has started.
+
+## Task clauses
+
+The specification each task was implemented against. T9 through T15 are
+complete — see the ledger above for their commits — and are kept here
+verbatim because the contract documents and several conformance tests
+quote them.
 
 * **T9 Ingest** — CSV/XLSX readers with encoding-fallback chain and
   delimiter inference; header normalization + alias resolution from
@@ -233,10 +246,15 @@ static-safety tests remain green; confidentiality gate clean.
   filenames, the transaction algorithm, audit events, exit codes and the
   terminal summary are fixed by `docs/PIPELINE_CONTRACT.md`, which is
   the authoritative T14 contract.
-* **T15 Documentation** — full README (problem, architecture + Mermaid
-  diagram, engineering highlights, quickstart, tests, sample I/O,
-  design decisions, security/privacy, limitations), architecture doc,
-  screenshots of own demo output only.
+* **T15 Documentation** — full README (problem, guarantees, quickstart,
+  deterministic demo transcript, generated artifacts, command
+  reference, testing, design decisions, limitations, repository layout)
+  and `docs/ARCHITECTURE.md` carrying the layer map as a
+  source-controlled Mermaid diagram. Documentation is **text only**: no
+  screenshots, no images, no badges, and no committed copy of generated
+  output. A conformance suite reads the documents and holds them to the
+  parser, the public constants and an executed demo, so a claim that
+  drifts from behaviour fails the build.
 * **T16 Pre-publication sweep** — full-history secret scan, generic
   pattern scans, fixture regeneration check, metadata review, README
   claim verification, tag v1.0.0, then publish.
@@ -273,8 +291,8 @@ docs, fixtures, or outputs; descriptive invented naming only.
    pinned environment.
 5. Dependency/license review (all MIT/BSD/Apache-compatible; public
    PyPI only).
-6. Metadata review: XLSX document properties neutral; screenshots
-   clean; `pyproject` author fields personal.
+6. Metadata review: XLSX document properties neutral; `pyproject`
+   author fields personal.
 7. Fresh-clone verification on a clean venv: install, lint, full test
    suite, demo run — all green on Linux and Windows.
 8. README accuracy: every command executed verbatim; every
