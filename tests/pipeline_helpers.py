@@ -12,7 +12,9 @@ shape.
 
 from __future__ import annotations
 
+import os
 import shutil
+import sysconfig
 from pathlib import Path
 
 import yaml
@@ -23,6 +25,54 @@ from las.pipeline import PipelineRequest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SAMPLES_DIR = REPO_ROOT / "data" / "samples"
 FIXTURE_NAMES = ("accounts.csv", "account_links.csv", "feed_alpha.xlsx", "feed_beta.csv")
+
+#: The console script declared by ``[project.scripts]``, without any suffix.
+LAUNCHER_STEM = "las"
+
+#: ``os.name`` on Windows. Named once so the platform test reads as a fact
+#: rather than a magic string.
+WINDOWS_OS_NAME = "nt"
+
+
+def launcher_path(scripts_dir: Path | str, os_name: str = os.name) -> Path:
+    """Where the installed ``las`` console script lives, for one layout.
+
+    Pure: it takes the scripts directory and the operating-system name and
+    touches neither the filesystem nor the running interpreter, so both
+    platform layouts can be checked from either host.
+
+    The two variables are exactly the two things that differ. Installers put
+    console scripts in the *scripts* directory of the active scheme, which is
+    ``bin`` beside the interpreter on POSIX but ``Scripts`` one level below it
+    on Windows, and Windows needs the ``.exe`` launcher shim because
+    ``CreateProcess`` will not run an extensionless file.
+    """
+    suffix = ".exe" if os_name == WINDOWS_OS_NAME else ""
+    return Path(scripts_dir) / f"{LAUNCHER_STEM}{suffix}"
+
+
+def installed_launcher() -> Path:
+    """The ``las`` launcher installed in the *active* environment.
+
+    ``sysconfig.get_path("scripts")`` is the authority: it already knows the
+    scheme in use, so it resolves a venv, a system install and Windows alike.
+    Deriving the directory from ``sys.executable`` instead happens to work on
+    POSIX — where the interpreter sits in the same ``bin`` directory — and
+    silently breaks on Windows, where it is one directory too high.
+
+    Raises rather than falling back: a missing launcher means the package is
+    not installed, and quietly running something else would turn these tests
+    into a check of the wrong program.
+    """
+    path = launcher_path(sysconfig.get_path("scripts"))
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"the {LAUNCHER_STEM!r} console script is not installed in the active "
+            f"environment's scripts directory ({path.name} was expected); "
+            "install the package with `pip install -e .[dev]` before running the "
+            "subprocess CLI tests"
+        )
+    return path
 
 
 def make_project(root: Path, *, output_dir: str = "report", feeds=None) -> Path:

@@ -9,12 +9,11 @@ from __future__ import annotations
 
 import hashlib
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
 
-from pipeline_helpers import SAMPLES_DIR, make_project, staging_left
+from pipeline_helpers import SAMPLES_DIR, installed_launcher, make_project, staging_left
 
 FIXTURE_NAMES = ("accounts.csv", "account_links.csv", "feed_alpha.xlsx", "feed_beta.csv")
 REPORT_NAMES = (
@@ -25,9 +24,14 @@ REPORT_NAMES = (
 
 
 def las(*arguments: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
-    """Run the installed command, never a module import."""
+    """Run the installed command, never a module import.
+
+    The launcher is resolved through the active scheme's scripts directory so
+    the same call works on POSIX and Windows; see
+    ``pipeline_helpers.installed_launcher``.
+    """
     return subprocess.run(
-        [str(Path(sys.executable).parent / "las"), *arguments],
+        [str(installed_launcher()), *arguments],
         capture_output=True, text=True, timeout=180, cwd=cwd,
     )
 
