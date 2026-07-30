@@ -105,7 +105,7 @@ pip install -e .[dev]        # install with dev tools
 ruff check src tests scripts # lint
 pytest --cov=las --cov-report=term-missing     # full suite with coverage
 python scripts/generate_fixtures.py --seed 42  # regenerate committed fixtures
-python scripts/generate_fixtures.py --seed 42 --output-dir /tmp/check  # spot-check
+python scripts/generate_fixtures.py --seed 42 --output-dir temporary-output/check  # spot-check
 ```
 
 Verification habit after any fixture-related change: regenerate twice
@@ -217,10 +217,22 @@ static-safety tests remain green; confidentiality gate clean.
   Golden-file content tests. Sheet membership, column order, colours,
   the JSON schema and the decimal rules are fixed by
   `docs/REPORTING_CONTRACT.md`, which is the authoritative T13 contract.
-* **T14 Pipeline + CLI** — stage orchestrator (extract → ingest →
-  validate → match → reconcile → report → verify) wired to config,
-  audit trail, and logging; `las demo | run | generate-fixtures`;
-  end-to-end tests on both OSes; demo <60 s, deterministic per seed.
+* **T14 Pipeline + CLI** — seven-stage orchestrator (`EXTRACT` →
+  `INGEST` → `VALIDATE` → `MATCH` → `RECONCILE` → `REPORT` → `VERIFY`)
+  wired to config, audit trail, and logging; `las demo | run |
+  generate-fixtures`; end-to-end tests on both OSes; demo <60 s,
+  deterministic per seed. Every stage before `VERIFY` is pure — nothing
+  is created on disk until the gate passes — and the artifact set is
+  published as **one atomic directory transaction** into an output
+  directory that must not already exist. T14 is **report-only**: it
+  never mutates the simulator, so write-back mode is `DISABLED` with
+  zero attempted and zero applied updates. T8's dry-run-by-default
+  write-back stays tested but deliberately unwired, because nothing
+  states which reconciliation outcome should drive which record status.
+  Stage duties, the ledger adapter, feed-batch identity, artifact
+  filenames, the transaction algorithm, audit events, exit codes and the
+  terminal summary are fixed by `docs/PIPELINE_CONTRACT.md`, which is
+  the authoritative T14 contract.
 * **T15 Documentation** — full README (problem, architecture + Mermaid
   diagram, engineering highlights, quickstart, tests, sample I/O,
   design decisions, security/privacy, limitations), architecture doc,

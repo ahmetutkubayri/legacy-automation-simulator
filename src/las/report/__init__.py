@@ -110,10 +110,23 @@ from las.report.tabular import (
     review_queue_table,
     summary_table,
 )
-from las.report.xlsx import TEXT_TYPE, render_xlsx, uses_streaming
+from las.report.xlsx import (
+    CANONICAL_COMPRESS_LEVEL,
+    CANONICAL_CREATE_SYSTEM,
+    CANONICAL_ENTRY_DATE,
+    CANONICAL_EXTERNAL_ATTR,
+    TEXT_TYPE,
+    canonical_container,
+    render_xlsx,
+    uses_streaming,
+)
 
 __all__ = [
     "ACCOUNTING_METRICS",
+    "CANONICAL_COMPRESS_LEVEL",
+    "CANONICAL_CREATE_SYSTEM",
+    "CANONICAL_ENTRY_DATE",
+    "CANONICAL_EXTERNAL_ATTR",
     "BLANK",
     "COLUMN_NAMES_BY_SHEET",
     "DOCUMENT_TITLE",
@@ -172,6 +185,7 @@ __all__ = [
     "artifact",
     "band_counts",
     "build_report",
+    "canonical_container",
     "build_summary",
     "check_sheet_names",
     "columns_from",

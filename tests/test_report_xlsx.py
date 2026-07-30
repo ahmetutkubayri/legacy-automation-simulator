@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
+import time as _time
+import zipfile
 from datetime import datetime
 from decimal import Decimal
+from zipfile import ZipFile
 
 import pytest
 from openpyxl import load_workbook
 
 from las.reconcile import BatchReconcileResult, ReconcileOutcome, Side, summarize
 from las.report import (
+    CANONICAL_ENTRY_DATE,
     GROUP_COLUMN_NAMES,
     HEADER_FILL_ARGB,
     HEADER_FONT_ARGB,
@@ -22,6 +27,7 @@ from las.report import (
     WORKBOOK_SUBJECT,
     WORKBOOK_TITLE,
     build_report,
+    canonical_container,
     render_xlsx,
     uses_streaming,
 )
@@ -321,11 +327,17 @@ def test_repeated_renders_are_semantically_identical() -> None:
     )
 
 
-def test_the_rendered_bytes_are_not_claimed_to_be_identical() -> None:
-    """Semantic determinism is the contract; ZIP metadata is not controlled."""
+def test_equivalent_renders_are_byte_identical_and_semantically_identical() -> None:
+    """Both guarantees at once: the bytes match, and so do the semantics.
+
+    The container is canonicalized, so byte identity is the contract now — not
+    merely semantic identity. Asserting both together is what would catch a
+    regression that kept the cells right while letting the bytes drift.
+    """
     report = build_report(RESULT, POLICY)
     first, second = render_xlsx(report, POLICY), render_xlsx(report, POLICY)
-    # Whether or not the bytes match, the semantics must.
+    assert first == second
+    assert hashlib.sha256(first).hexdigest() == hashlib.sha256(second).hexdigest()
     assert workbook_semantics(first) == workbook_semantics(second)
 
 
@@ -352,3 +364,171 @@ def test_dimensions_match_the_model() -> None:
         sheet = book[table.sheet.value]
         assert sheet.max_row == table.row_count + 1
         assert sheet.max_column == len(table.columns)
+
+
+# =============================================================================
+# canonical ZIP container: equivalent renders are byte-identical
+# =============================================================================
+#
+# Fixing the workbook properties was not enough. ``zipfile`` stamped every entry
+# with the local clock, so two renders a second apart produced different bytes —
+# and a different SHA-256 — for a workbook whose contents were identical. T14
+# requires stable artifact hashes, so the container is now canonical too.
+
+def rendered() -> bytes:
+    return render_xlsx(build_report(RESULT, POLICY), POLICY)
+
+
+def entries(payload: bytes) -> list[zipfile.ZipInfo]:
+    with ZipFile(io.BytesIO(payload)) as archive:
+        return archive.infolist()
+
+
+def test_two_equivalent_renders_are_byte_identical() -> None:
+    assert rendered() == rendered()
+
+
+def test_two_equivalent_renders_have_the_same_sha256() -> None:
+    first = hashlib.sha256(rendered()).hexdigest()
+    second = hashlib.sha256(rendered()).hexdigest()
+    assert first == second
+    assert first == first.lower()
+
+
+def test_a_different_clock_cannot_change_the_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No sleeping: the clock is moved deliberately instead."""
+    baseline = rendered()
+    for offset in (0, 3_600, 86_400 * 365 * 5):
+        monkeypatch.setattr(_time, "time", lambda o=offset: 1_000_000_000.0 + o)
+        monkeypatch.setattr(
+            _time, "localtime", lambda *_a, o=offset: _time.gmtime(1_000_000_000.0 + o)
+        )
+        assert rendered() == baseline
+
+
+def test_a_different_timezone_cannot_change_the_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    baseline = rendered()
+    for zone in ("UTC", "Pacific/Kiritimati", "Etc/GMT+12"):
+        monkeypatch.setenv("TZ", zone)
+        if hasattr(_time, "tzset"):
+            _time.tzset()
+        assert rendered() == baseline
+    monkeypatch.delenv("TZ", raising=False)
+    if hasattr(_time, "tzset"):
+        _time.tzset()
+
+
+def test_a_different_locale_cannot_change_the_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    baseline = rendered()
+    for value in ("C", "en_US.UTF-8", "de_DE.UTF-8"):
+        monkeypatch.setenv("LC_ALL", value)
+        monkeypatch.setenv("LANG", value)
+        assert rendered() == baseline
+
+
+def test_a_different_global_decimal_context_cannot_change_the_bytes() -> None:
+    import decimal
+
+    baseline = rendered()
+    saved = decimal.getcontext()
+    try:
+        for prec in (1, 3, 400):
+            decimal.setcontext(decimal.Context(prec=prec))
+            assert rendered() == baseline
+    finally:
+        decimal.setcontext(saved)
+
+
+def test_every_zip_entry_carries_the_fixed_timestamp() -> None:
+    """The regression: the previous renderer stamped the current local time."""
+    stamps = {entry.date_time for entry in entries(rendered())}
+    assert stamps == {CANONICAL_ENTRY_DATE}
+    assert CANONICAL_ENTRY_DATE == (1980, 1, 1, 0, 0, 0)
+    from datetime import UTC, datetime
+
+    assert datetime.now(UTC).year not in {stamp[0] for stamp in stamps}
+
+
+def test_every_zip_entry_carries_fixed_platform_metadata() -> None:
+    infos = entries(rendered())
+    assert {entry.create_system for entry in infos} == {3}
+    assert {entry.external_attr for entry in infos} == {0o600 << 16}
+    assert {entry.compress_type for entry in infos} == {zipfile.ZIP_DEFLATED}
+
+
+def test_zip_entry_ordering_is_deterministic() -> None:
+    names = [entry.filename for entry in entries(rendered())]
+    assert names == sorted(names)
+    assert names == [entry.filename for entry in entries(rendered())]
+
+
+def test_the_archive_and_its_entries_carry_no_comment() -> None:
+    payload = rendered()
+    with ZipFile(io.BytesIO(payload)) as archive:
+        assert archive.comment == b""
+    assert all(entry.comment == b"" for entry in entries(payload))
+
+
+def test_no_uncontrolled_extra_field_remains() -> None:
+    assert all(entry.extra == b"" for entry in entries(rendered()))
+
+
+def test_the_core_properties_remain_the_fixed_epoch() -> None:
+    book = load_workbook(io.BytesIO(rendered()))
+    assert book.properties.created == datetime(2000, 1, 1)
+    assert book.properties.modified == datetime(2000, 1, 1)
+
+
+def test_repeated_standard_renders_are_byte_identical() -> None:
+    policy = make_policy(streaming_row_threshold=50_000)
+    report = build_report(RESULT, policy)
+    assert not uses_streaming(report, policy)
+    assert render_xlsx(report, policy) == render_xlsx(report, policy)
+
+
+def test_repeated_streaming_renders_are_byte_identical() -> None:
+    policy = make_policy(streaming_row_threshold=1)
+    report = build_report(RESULT, policy)
+    assert uses_streaming(report, policy)
+    assert render_xlsx(report, policy) == render_xlsx(report, policy)
+
+
+def test_equivalent_input_ordering_produces_byte_identical_output() -> None:
+    """Reordering equivalent groups must not move a single byte."""
+    groups = tuple(sorted(RESULT.groups, key=lambda g: g.key.sort_key))
+    reordered = BatchReconcileResult(
+        groups=groups, unresolved=RESULT.unresolved,
+        summary=summarize(groups, RESULT.unresolved,
+                          feed_rows_in=RESULT.summary.feed_rows_in,
+                          system_rows_in=RESULT.summary.system_rows_in),
+    )
+    assert render_xlsx(build_report(reordered, POLICY), POLICY) == rendered()
+
+
+def test_the_canonical_archive_still_opens_as_a_workbook() -> None:
+    payload = rendered()
+    with ZipFile(io.BytesIO(payload)) as archive:
+        assert archive.testzip() is None
+    book = load_workbook(io.BytesIO(payload))
+    assert book.sheetnames == ["Summary", "Exceptions", "Reconciliation", "Review Queue"]
+
+
+def test_canonicalization_writes_nothing_to_the_filesystem(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Rendering stays as filesystem-free as the rest of reporting."""
+    monkeypatch.chdir(tmp_path)
+    before = set(tmp_path.rglob("*"))
+    canonical_container(rendered())
+    assert set(tmp_path.rglob("*")) == before
+
+
+def test_canonicalization_is_idempotent() -> None:
+    once = rendered()
+    assert canonical_container(once) == once

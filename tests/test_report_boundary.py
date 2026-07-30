@@ -228,8 +228,15 @@ def test_report_never_serializes_arbitrary_objects() -> None:
 
 
 def test_report_stringifies_nothing_arbitrary() -> None:
-    """``str(`` appears nowhere: numbers go through the canonical renderers."""
-    occurrences = {path.name: code_only(path).count("str(") for path in report_sources()}
+    """No bare ``str(`` call: numbers go through the canonical renderers.
+
+    Matched as a whole call, not as a substring — ``ZipFile.writestr`` ends in
+    those four characters and stringifies nothing.
+    """
+    occurrences = {
+        path.name: len(re.findall(r"(?<![A-Za-z0-9_])str\(", code_only(path)))
+        for path in report_sources()
+    }
     assert all(count == 0 for count in occurrences.values()), occurrences
 
 

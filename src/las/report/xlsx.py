@@ -20,15 +20,28 @@ Two construction paths, one workbook
 Above the configured threshold the workbook is built write-only, which streams
 rows out instead of holding them in memory. The two paths must be
 indistinguishable after reload: same sheets, order, dimensions, values, types,
-header styles and fills. Only the ZIP container may differ, which is why this
-package promises semantic determinism and never byte determinism.
+header styles and fills.
+
+Determinism, semantic and byte-for-byte
+---------------------------------------
+Both are guaranteed. The workbook's semantics are deterministic — equivalent
+inputs give the same sheets, values, types and styles by whichever construction
+path — and the ZIP container is canonicalized on the way out, so equivalent
+inputs also produce **byte-identical** XLSX output. A workbook's SHA-256 is
+therefore stable and part of this package's public guarantee, which is what lets
+the pipeline publish it as evidence that two runs produced the same report.
+
+Without that canonicalization the bytes would drift: ``zipfile`` stamps every
+entry with the local clock and the producing platform, so two renders a second
+apart differed in their container while every cell was identical. See
+:func:`canonical_container` and ``docs/REPORTING_CONTRACT.md``.
 """
 
 from __future__ import annotations
 
 import io
 from datetime import datetime
-from zipfile import ZIP_DEFLATED, ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 from openpyxl import Workbook
 from openpyxl.cell import WriteOnlyCell
@@ -49,6 +62,20 @@ from las.report.policy import (
 
 #: Text cell type, in openpyxl's vocabulary.
 TEXT_TYPE = "s"
+
+#: The earliest timestamp the zip format can represent, and the one every entry
+#: is given. A clock reading here would change the artifact's bytes — and so its
+#: SHA-256 — every second, for a workbook whose contents never changed.
+CANONICAL_ENTRY_DATE = (1980, 1, 1, 0, 0, 0)
+
+#: One compression method at one level, so the compressed bytes do not depend on
+#: whichever default the running zlib happens to carry.
+CANONICAL_COMPRESS_LEVEL = 6
+
+#: Fixed producing-platform and attribute bytes, so the container says nothing
+#: about the machine that made it.
+CANONICAL_CREATE_SYSTEM = 3
+CANONICAL_EXTERNAL_ATTR = 0o600 << 16
 
 
 def _header_font(policy: ReportPolicy) -> Font:
@@ -137,6 +164,41 @@ def _write_streaming(workbook: Workbook, table: Table, policy: ReportPolicy) -> 
         sheet.append(cells)
 
 
+def canonical_container(payload: bytes) -> bytes:
+    """Rewrite the archive so equivalent workbooks are byte-identical.
+
+    Fixing the workbook's *properties* was not enough. ``zipfile`` stamps every
+    entry with the local clock and the producing platform, so two renders
+    seconds apart differed in their container while their contents were
+    identical — the artifact's SHA-256 changed without a single cell changing.
+    That is the defect this removes.
+
+    Everything the container can vary by is pinned: entries are re-emitted in
+    sorted name order, each with the fixed 1980 epoch every zip can express,
+    one compression method at one level, one ``create_system`` and one
+    ``external_attr``. A fresh :class:`~zipfile.ZipInfo` per entry drops any
+    extra field the writer added, and neither the archive nor any entry carries
+    a comment.
+
+    Entirely in memory: the workbook is never written to disk to be
+    canonicalized, so rendering stays as filesystem-free as the rest of
+    reporting.
+    """
+    source = ZipFile(io.BytesIO(payload))
+    buffer = io.BytesIO()
+    with ZipFile(
+        buffer, "w", ZIP_DEFLATED, allowZip64=True, compresslevel=CANONICAL_COMPRESS_LEVEL
+    ) as target:
+        for name in sorted(source.namelist()):
+            info = ZipInfo(name, date_time=CANONICAL_ENTRY_DATE)
+            info.compress_type = ZIP_DEFLATED
+            info.create_system = CANONICAL_CREATE_SYSTEM
+            info.external_attr = CANONICAL_EXTERNAL_ATTR
+            target.writestr(info, source.read(name))
+    source.close()
+    return buffer.getvalue()
+
+
 def uses_streaming(report: ReportModel, policy: ReportPolicy) -> bool:
     """Whether this report's detail sheets are large enough to stream.
 
@@ -181,7 +243,7 @@ def render_xlsx(report: ReportModel, policy: ReportPolicy) -> bytes:
         with ZipFile(buffer, "w", ZIP_DEFLATED, allowZip64=True) as archive:
             ExcelWriter(workbook, archive).write_data()
         workbook.close()
-        return buffer.getvalue()
+        return canonical_container(buffer.getvalue())
     except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
         # Only the exception's type name travels: its message could quote a
         # cell value, and a cell value belongs in the workbook, not an error.

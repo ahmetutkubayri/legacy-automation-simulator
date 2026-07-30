@@ -249,10 +249,31 @@ def test_the_contract_states_the_streaming_rule() -> None:
     assert "indistinguishable after reload" in FLAT
 
 
-def test_the_contract_distinguishes_semantic_from_byte_determinism() -> None:
+def test_the_contract_promises_byte_identical_artifacts_in_all_formats() -> None:
+    """The T13 position changed for T14: XLSX hashes must be stable too."""
     assert "byte-identical** across repeated renders" in FLAT
-    assert "semantically identical**" in FLAT
-    assert "byte-identical XLSX is not claimed" in FLAT
+    assert "each artifact's SHA-256 is stable" in FLAT
+    assert "byte-identical XLSX is not claimed" not in FLAT
+
+
+def test_the_contract_documents_the_canonical_zip_container() -> None:
+    for phrase in ("canonicalizing its ZIP container", "1980-01-01 00:00:00",
+                   "sorted name order", "create_system", "external_attr",
+                   "no archive or entry comment", "entirely in memory"):
+        assert phrase in FLAT, phrase
+
+
+def test_the_contract_states_the_core_properties_are_unchanged() -> None:
+    assert "created and modified both stay" in FLAT
+    assert "2000-01-01 00:00:00" in FLAT
+
+
+def test_the_pipeline_contract_references_the_byte_guarantee() -> None:
+    pipeline = " ".join(
+        (REPO_ROOT / "docs" / "PIPELINE_CONTRACT.md").read_text(encoding="utf-8").split()
+    )
+    assert "byte-identical artifacts in all three formats" in pipeline
+    assert "docs/REPORTING_CONTRACT.md" in pipeline
 
 
 def test_the_contract_states_the_media_types_and_suffixes() -> None:

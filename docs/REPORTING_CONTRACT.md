@@ -264,10 +264,22 @@ absolute path, or a source filename.
 
 ## Determinism
 
-JSON and HTML are **byte-identical** across repeated renders. XLSX is
-**semantically identical** across repeated renders and between the standard and
-streaming paths — raw ZIP bytes are not part of this contract and byte-identical
-XLSX is not claimed.
+All three artifacts are **byte-identical** across repeated renders of equivalent
+inputs, so each artifact's SHA-256 is stable and T14 can publish it as evidence.
+XLSX is byte-identical *and* semantically identical, including between the
+standard and streaming construction paths.
+
+The workbook earns that by canonicalizing its ZIP container. Fixing the
+workbook's core properties was not enough: `zipfile` stamps every entry with the
+local clock and the producing platform, so two renders a second apart differed
+in bytes — and in hash — while every cell was identical. Every entry is now
+re-emitted in sorted name order with the fixed `1980-01-01 00:00:00` timestamp,
+one compression method at one level, one `create_system`, one `external_attr`,
+no extra field, and no archive or entry comment. The rewrite happens entirely in
+memory; no workbook is written to disk to be canonicalized.
+
+Core properties are unchanged: created and modified both stay
+`2000-01-01 00:00:00`.
 
 No output depends on mapping insertion order, the current date or time, the
 timezone, the locale, the global decimal context, the operating system's newline
