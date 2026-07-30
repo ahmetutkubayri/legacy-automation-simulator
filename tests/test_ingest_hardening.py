@@ -16,6 +16,7 @@ are assembled from fragments and invented names.
 from __future__ import annotations
 
 import datetime as dt
+from dataclasses import MISSING, fields
 from pathlib import Path
 
 import pytest
@@ -172,6 +173,60 @@ def test_caller_dictionaries_are_copied_before_being_frozen() -> None:
 
     assert row.values == {"amount": "1"}
     assert row.extras == {"reported by": "Demo Account 000001"}
+
+
+def test_a_row_can_omit_extras_and_gets_an_empty_read_only_mapping() -> None:
+    """The default must exist, be empty, and be immutable."""
+    row = IngestedRow(provenance=provenance(), values={"amount": "1"})
+
+    assert row.extras == {}
+    assert len(row.extras) == 0
+    with pytest.raises(TypeError):
+        row.extras["injected"] = "value"  # type: ignore[index]
+    with pytest.raises(AttributeError):
+        row.extras.clear()  # type: ignore[attr-defined]
+
+
+def test_rows_defaulting_their_extras_share_no_state() -> None:
+    """A shared default would let one row's contents appear in another's."""
+    first = IngestedRow(provenance=provenance(), values={"amount": "1"})
+    second = IngestedRow(provenance=provenance(), values={"amount": "2"})
+
+    assert first.extras is not second.extras
+    # Neither the proxy nor the dictionary underneath it is shared.
+    assert first.extras.copy() is not second.extras.copy()
+    supplied = IngestedRow(
+        provenance=provenance(), values={"amount": "3"}, extras={"note": "x"}
+    )
+    assert first.extras == {} and second.extras == {}
+    assert supplied.extras == {"note": "x"}
+
+
+def test_supplied_extras_are_still_copied_and_frozen() -> None:
+    """The factory changed the default only; explicit input behaves as before."""
+    extras = {"reported by": "Demo Account 000002"}
+    row = IngestedRow(provenance=provenance(), values={"amount": "1"}, extras=extras)
+
+    extras["injected"] = "x"
+    assert row.extras == {"reported by": "Demo Account 000002"}
+    with pytest.raises(TypeError):
+        row.extras["injected"] = "value"  # type: ignore[index]
+
+
+def test_the_extras_default_is_a_factory_not_a_bare_mapping() -> None:
+    """Pins the compatibility regression this idiom exists to prevent.
+
+    ``dataclasses`` treats an unhashable default as a mutable one and refuses
+    the class outright. ``mappingproxy`` is unhashable before Python 3.12, so a
+    bare ``MappingProxyType({})`` default made the whole package unimportable
+    on 3.11 — every module that reached this one failed at collection.
+    """
+    extras = next(f for f in fields(IngestedRow) if f.name == "extras")
+
+    assert extras.default is MISSING, "a bare default breaks Python 3.11"
+    assert extras.default_factory is not MISSING
+    assert extras.default_factory() == {}
+    assert extras.default_factory() is not extras.default_factory()
 
 
 def test_schema_alias_and_lookup_mappings_are_read_only() -> None:

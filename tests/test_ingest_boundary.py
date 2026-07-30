@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -32,10 +33,32 @@ FORBIDDEN_PREFIXES = (
 #: this task, so ingestion takes no dependency on it.
 ALLOWED_LAS_PREFIXES = ("las.ingest", "las.config")
 
-#: Third-party modules ingestion must not pull in. Only pinned openpyxl and
-#: the standard library are permitted, so pandas stays out even though the
-#: project declares it for a later stage.
+#: Third-party modules ingestion must not import. Only pinned openpyxl and the
+#: standard library are permitted; neither pandas nor numpy is a dependency of
+#: this project at all.
 FORBIDDEN_THIRD_PARTY = ("pandas", "numpy", "yaml", "pydantic")
+
+#: Distributions this project must never declare as a requirement. openpyxl
+#: reaches for numpy opportunistically when it happens to be installed, which
+#: is openpyxl's business — it must never become ours.
+UNDECLARABLE_DISTRIBUTIONS = ("numpy", "pandas")
+
+#: Installs a meta-path finder that makes ``numpy`` unimportable, then runs the
+#: caller's statements. ``ModuleNotFoundError`` is an ``ImportError``, so
+#: openpyxl's optional-import fallback takes over exactly as it would on a
+#: machine where numpy was never installed.
+BLOCK_NUMPY = """
+import importlib.abc, sys
+
+class BlockNumpy(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == "numpy" or fullname.startswith("numpy."):
+            raise ModuleNotFoundError("numpy is blocked for this probe")
+        return None
+
+sys.meta_path.insert(0, BlockNumpy())
+sys.path.insert(0, "tests")
+"""
 
 
 def ingest_sources() -> list[Path]:
@@ -102,10 +125,8 @@ def test_importing_ingest_loads_no_forbidden_modules() -> None:
 def test_importing_ingest_does_not_load_pandas() -> None:
     """pandas must never be loaded, however indirectly.
 
-    numpy is deliberately *not* asserted against here: the pinned openpyxl
-    imports it on its own, before any of this package is involved, which the
-    companion test below pins so the omission cannot be mistaken for an
-    oversight. pandas has no such excuse.
+    Nothing in this project depends on pandas, so a machine that happens to
+    have it installed must still never see it imported on our account.
     """
     probe = (
         "import sys; import las.ingest; "
@@ -122,30 +143,74 @@ def test_importing_ingest_does_not_load_pandas() -> None:
     assert result.stdout.strip() == ""
 
 
-def test_numpy_arrives_through_openpyxl_and_not_through_ingest() -> None:
-    """Records why numpy is exempt from the runtime import check.
+@pytest.mark.parametrize("distribution", UNDECLARABLE_DISTRIBUTIONS)
+def test_the_project_declares_no_dependency_on(distribution: str) -> None:
+    """Metadata, not imports: neither name may appear as a requirement."""
+    import importlib.metadata as metadata
 
-    If a future openpyxl stops importing numpy, this test fails and the
-    exemption above should be tightened rather than quietly kept.
+    requirements = metadata.requires("legacy-automation-simulator") or []
+    assert requirements, "the package metadata could not be read"
+    for requirement in requirements:
+        name = re.split(r"[\s\[<>=!;~]", requirement.strip(), maxsplit=1)[0]
+        assert name.lower() != distribution, (
+            f"'{distribution}' is declared as a requirement: {requirement}"
+        )
+
+
+def run_without_numpy(statements: str) -> subprocess.CompletedProcess:
+    """Run statements in a fresh interpreter where numpy cannot be imported.
+
+    The parent environment is left alone: nothing is uninstalled, no module is
+    removed from this interpreter, and openpyxl is not patched. The child
+    simply cannot resolve numpy, which is the condition a clean install
+    produces anyway.
     """
-    probe = (
-        "import sys; import openpyxl; "
-        "print('numpy' if 'numpy' in sys.modules else '')"
-    )
-    result = subprocess.run(
-        [sys.executable, "-c", probe],
+    return subprocess.run(
+        [sys.executable, "-c", BLOCK_NUMPY + statements],
         capture_output=True,
         text=True,
         check=True,
-        timeout=60,
+        timeout=120,
         cwd=REPO_ROOT,
     )
-    assert result.stdout.strip() == "numpy", (
-        "openpyxl no longer pulls in numpy; tighten the runtime import check"
+
+
+def test_ingest_imports_when_numpy_is_unavailable() -> None:
+    """numpy is optional to openpyxl, so it must be optional to us."""
+    result = run_without_numpy(
+        "import las.ingest\n"
+        "print('numpy' if 'numpy' in sys.modules else 'clean')\n"
     )
-    # And ingest itself never names numpy, which the static check enforces.
+    assert result.stdout.strip() == "clean"
+
+
+def test_reading_a_workbook_works_when_numpy_is_unavailable(tmp_path: Path) -> None:
+    """The XLSX path is the one that reaches openpyxl, so it is the one to prove."""
+    result = run_without_numpy(
+        "import tempfile, pathlib\n"
+        "from openpyxl import Workbook\n"
+        "from ingest_helpers import schema\n"
+        "from las.ingest import read_xlsx\n"
+        "book = Workbook()\n"
+        "sheet = book.active\n"
+        "sheet.append(['Record Id', 'External Reference', 'Quantity'])\n"
+        "sheet.append(['OPR-00000001', 'EXT-10000', '1'])\n"
+        "directory = pathlib.Path(tempfile.mkdtemp())\n"
+        "path = directory / 'probe.xlsx'\n"
+        "book.save(path)\n"
+        "outcome = read_xlsx(path, schema())\n"
+        "row = outcome.rows[0]\n"
+        "print(len(outcome.rows), row.get('record_id'), row.get('amount'), "
+        "'numpy' if 'numpy' in sys.modules else 'clean')\n"
+    )
+    assert result.stdout.strip() == "1 OPR-00000001 1 clean"
+
+
+def test_no_ingest_source_mentions_numpy() -> None:
     for path in ingest_sources():
-        assert "numpy" not in path.read_text(encoding="utf-8")
+        assert "numpy" not in path.read_text(encoding="utf-8"), (
+            f"{path.name} mentions numpy"
+        )
 
 
 def test_openpyxl_is_used_only_by_the_reader_module() -> None:

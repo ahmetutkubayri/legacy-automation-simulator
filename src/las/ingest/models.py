@@ -26,6 +26,7 @@ import re
 import unicodedata
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from dataclasses import field as dc_field
 from enum import StrEnum
 from types import MappingProxyType
 
@@ -137,7 +138,12 @@ class IngestedRow:
 
     provenance: RowProvenance
     values: Mapping[str, str | None]
-    extras: Mapping[str, str | None] = MappingProxyType({})
+    # A factory, not a bare ``MappingProxyType({})``: Python 3.11's dataclasses
+    # reject an unhashable default, and a mappingproxy only became hashable in
+    # 3.12. ``__post_init__`` re-freezes either way, so this is the same value.
+    extras: Mapping[str, str | None] = dc_field(
+        default_factory=lambda: MappingProxyType({})
+    )
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "values", _freeze(self.values))

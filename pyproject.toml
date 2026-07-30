@@ -28,7 +28,6 @@ classifiers = [
     "Topic :: Office/Business",
 ]
 dependencies = [
-    "pandas>=2.2",
     # openpyxl is pinned exactly: its version is embedded in generated
     # XLSX fixtures and affects byte-level reproducibility (see
     # docs/DEVELOPMENT_PLAN.md, "Determinism and reproducibility").
