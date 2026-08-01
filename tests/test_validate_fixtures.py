@@ -75,7 +75,7 @@ def known_refs() -> frozenset[str]:
 @pytest.fixture(scope="module")
 def ingested(config: RunConfig) -> dict[str, IngestResult]:
     return {
-        feed.name: read_source(REPO_ROOT / feed.path, feed_schema(feed))
+        feed.name: read_source(SAMPLES_DIR / feed.path, feed_schema(feed))
         for feed in config.feeds
     }
 

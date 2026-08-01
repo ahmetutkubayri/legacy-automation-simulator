@@ -13,11 +13,12 @@ simulator:
   busy_delay_min_ms: 5
   busy_delay_max_ms: 50
 
-# Feed paths are relative to the repository root and point at the
-# committed generated fixtures.
+# Every relative path in this file is resolved against the directory holding
+# this file, never against the working directory or the repository root. These
+# names therefore point at the committed generated fixtures beside it.
 feeds:
   - name: feed_alpha
-    path: data/samples/feed_alpha.xlsx
+    path: feed_alpha.xlsx
     header_aliases:
       "Record Id": record_id
       "External Reference": external_ref
@@ -25,7 +26,7 @@ feeds:
       "Quantity Unit": unit
       "Reporting Period": period
   - name: feed_beta
-    path: data/samples/feed_beta.csv
+    path: feed_beta.csv
     header_aliases:
       "REC_ID": record_id
       "EXT_REF": external_ref

@@ -59,13 +59,13 @@ def links() -> IngestResult:
 @pytest.fixture(scope="module")
 def alpha(config: RunConfig) -> IngestResult:
     feed = next(f for f in config.feeds if f.name == "feed_alpha")
-    return read_source(REPO_ROOT / feed.path, feed_schema(feed))
+    return read_source(SAMPLES_DIR / feed.path, feed_schema(feed))
 
 
 @pytest.fixture(scope="module")
 def beta(config: RunConfig) -> IngestResult:
     feed = next(f for f in config.feeds if f.name == "feed_beta")
-    return read_source(REPO_ROOT / feed.path, feed_schema(feed))
+    return read_source(SAMPLES_DIR / feed.path, feed_schema(feed))
 
 
 def documented_hashes() -> dict[str, str]:
@@ -99,7 +99,7 @@ def test_all_four_fixtures_are_readable_through_their_schemas(
 
 def test_configured_feed_paths_are_the_committed_fixtures(config: RunConfig) -> None:
     for feed in config.feeds:
-        assert (REPO_ROOT / feed.path).is_file()
+        assert (SAMPLES_DIR / feed.path).is_file()
 
 
 # --- header resolution against the real fixture headers -----------------------
@@ -176,8 +176,8 @@ def test_provenance_carries_a_basename_and_never_a_path(
 def test_counts_are_deterministic_across_repeated_reads(config: RunConfig) -> None:
     feed = next(f for f in config.feeds if f.name == "feed_beta")
     schema = feed_schema(feed)
-    first = read_source(REPO_ROOT / feed.path, schema)
-    second = read_source(REPO_ROOT / feed.path, schema)
+    first = read_source(SAMPLES_DIR / feed.path, schema)
+    second = read_source(SAMPLES_DIR / feed.path, schema)
     assert first == second
 
 
@@ -270,7 +270,7 @@ def test_ingestion_leaves_every_fixture_byte_identical(config: RunConfig) -> Non
     read_source(SAMPLES_DIR / "accounts.csv", ACCOUNT_SCHEMA)
     read_source(SAMPLES_DIR / "account_links.csv", ACCOUNT_LINK_SCHEMA)
     for feed in config.feeds:
-        read_source(REPO_ROOT / feed.path, feed_schema(feed))
+        read_source(SAMPLES_DIR / feed.path, feed_schema(feed))
     after = {
         name: hashlib.sha256((SAMPLES_DIR / name).read_bytes()).hexdigest()
         for name in FIXTURE_NAMES

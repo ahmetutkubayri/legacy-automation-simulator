@@ -4,10 +4,14 @@ Deliberately not named ``test_*``: several pipeline modules import it, and
 importing shared data from another test module would couple those together.
 
 The builders here assemble a *config-relative* project in a temporary
-directory: the four committed fixtures copied beside a configuration whose feed
-paths are bare filenames. That is exactly the layout the resolution rule
-describes, and it keeps every test free of the repository's own directory
-shape.
+directory: the four committed fixtures copied beside the committed
+configuration, whose feed paths already resolve from the directory holding it.
+That is exactly the layout the resolution rule describes, and it keeps every
+test free of the repository's own directory shape.
+
+Only ``output_dir`` is overridden, so each test can publish where it likes. No
+feed path is rewritten on the way through: a helper that quietly repaired the
+committed configuration would hide a configuration no ``las run`` can load.
 """
 
 from __future__ import annotations
@@ -83,8 +87,6 @@ def make_project(root: Path, *, output_dir: str = "report", feeds=None) -> Path:
 
     raw = yaml.safe_load((SAMPLES_DIR / "config.yaml").read_text(encoding="utf-8"))
     raw["output_dir"] = output_dir
-    for feed in raw["feeds"]:
-        feed["path"] = Path(feed["path"]).name
     if feeds is not None:
         raw["feeds"] = feeds
     config_path = root / "config.yaml"

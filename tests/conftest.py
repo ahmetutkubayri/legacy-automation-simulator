@@ -15,8 +15,12 @@ def sample_config_path() -> Path:
 
 @pytest.fixture()
 def base_config() -> dict:
-    """Smallest valid RunConfig payload; tests mutate copies of it."""
+    """Smallest valid RunConfig payload; tests mutate copies of it.
+
+    The feed path is config-relative, matching the committed sample: relative
+    paths resolve against the directory holding the configuration.
+    """
     return {
         "seed": 1,
-        "feeds": [{"name": "feed_a", "path": "data/samples/feed_a.csv"}],
+        "feeds": [{"name": "feed_a", "path": "feed_a.csv"}],
     }

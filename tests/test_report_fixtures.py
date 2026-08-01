@@ -73,7 +73,7 @@ def result(config: RunConfig) -> BatchReconcileResult:
     batches = []
     for feed in config.feeds:
         validated = validate_ingest_result(
-            read_source(REPO_ROOT / feed.path, feed_schema(feed)), vpolicy
+            read_source(SAMPLES_DIR / feed.path, feed_schema(feed)), vpolicy
         )
         batches.append(
             FeedBatch(

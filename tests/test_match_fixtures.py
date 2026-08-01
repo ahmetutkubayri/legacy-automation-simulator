@@ -78,7 +78,7 @@ def matched(
     mpolicy = policy_from_config(config.match, max_name_length=NAME_LENGTH)
     results: dict[str, BatchMatchResult] = {}
     for feed in config.feeds:
-        ingested = read_source(REPO_ROOT / feed.path, feed_schema(feed))
+        ingested = read_source(SAMPLES_DIR / feed.path, feed_schema(feed))
         validated = validate_ingest_result(ingested, vpolicy)
         results[feed.name] = match_validated(validated, index, mpolicy)
     return results
@@ -305,7 +305,7 @@ def test_matching_is_deterministic_across_repeated_runs(
     mpolicy = policy_from_config(config.match)
     feed = config.feeds[0]
     validated = validate_ingest_result(
-        read_source(REPO_ROOT / feed.path, feed_schema(feed)), vpolicy
+        read_source(SAMPLES_DIR / feed.path, feed_schema(feed)), vpolicy
     )
     assert match_validated(validated, index, mpolicy) == match_validated(
         validated, index, mpolicy

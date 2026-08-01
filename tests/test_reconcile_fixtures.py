@@ -88,7 +88,7 @@ def batches(
     mpolicy = match_policy(config.match)
     built: list[FeedBatch] = []
     for feed in config.feeds:
-        ingested = read_source(REPO_ROOT / feed.path, feed_schema(feed))
+        ingested = read_source(SAMPLES_DIR / feed.path, feed_schema(feed))
         validated = validate_ingest_result(ingested, vpolicy)
         built.append(
             FeedBatch(validation=validated, matching=match_validated(validated, index, mpolicy))
