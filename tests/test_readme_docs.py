@@ -522,11 +522,12 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
     assert "T16 is in progress" in flat
     assert "Nothing in T16 has started" not in flat
 
-    # The three landed repairs, named.
+    # The landed repairs, named.
     assert "path-resolution" in flat
     assert "audit and logging claim alignment" in flat
     assert "ignored-configuration-surface cleanup" in flat
     assert "ignored-configuration-surface pass has not started" not in flat
+    assert "source-distribution packaging policy" in flat
 
     # The removed keys are recorded, and the lower-level APIs are not claimed gone.
     for key in ("log_level", "fault_profile", "fault_seed",
@@ -534,13 +535,29 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
         assert key in flat, f"the plan does not record the removed key {key}"
     assert "fault model and the logging facility are untouched" in flat
 
+    # The packaging repair is described by what it decided, not merely named.
+    assert "the wheel carries the `las` package and its metadata" in flat
+    assert "The runnable suite lives in the Git repository, not in a release archive" in flat
+    assert "packaging repair has not started" not in flat
+
+    # The version-source cleanup has *not* landed, and the plan says so.
+    assert "The version-source cleanup has not started" in flat
+    assert "the version-source cleanup has landed" not in flat
+
     # What is still outstanding, and that nothing has shipped.
-    assert "Packaging" in flat
     assert "the release tag all remain" in flat
     assert "the repository has not been tagged or released" in flat
     for overstated in ("T16 is complete", "T16 is finished", "ready to publish",
                        "release readiness has been achieved"):
         assert overstated not in flat, f"the plan overstates progress: {overstated}"
+
+    # The status section carries no hash of its own and no placeholder: the
+    # ledger above is the only place a commit hash belongs, and this pass is
+    # not committed yet. Bounded to the T16 section so the ledger is untouched.
+    status = PLAN.split("## Current task: T16", 1)[1].split("\n## ", 1)[0]
+    assert not re.search(r"\b[0-9a-f]{40}\b", status), "the status section pins a commit"
+    for placeholder in ("TBD", "TODO", "FIXME", "XXX", "<commit", "PLACEHOLDER"):
+        assert placeholder not in status, f"the status section carries {placeholder}"
 
 
 @pytest.mark.parametrize(

@@ -1,0 +1,14 @@
+# Source-distribution policy.
+#
+# Setuptools' implicit default sweeps `tests/test*.py` into the sdist while
+# leaving everything those modules need behind — conftest, the shared helpers,
+# the goldens, the sample data, the contract documents and the fixture
+# generator are all repository files, not package files. The result was an
+# archive that looked like it carried the suite and could not collect it.
+#
+# Nobody chose to publish those tests; a default did. This rule makes the
+# choice explicit: the runnable suite lives in the Git repository, and a
+# release archive carries only what is needed to build, install, license and
+# describe the package. `tests/test_packaging.py` holds both archives to that
+# contract.
+prune tests

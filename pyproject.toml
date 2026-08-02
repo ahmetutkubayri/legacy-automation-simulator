@@ -38,9 +38,16 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    # `build`, `setuptools` and `wheel` are listed so the packaging tests can
+    # build both archives locally with `--no-isolation`: the release policy in
+    # MANIFEST.in is only worth asserting if the assertion runs offline, in the
+    # same environment as the rest of the suite, without fetching a backend.
+    "build>=1.2",
     "pytest>=8.0",
     "pytest-cov>=5.0",
     "ruff>=0.5",
+    "setuptools>=69",
+    "wheel>=0.43",
 ]
 
 [project.scripts]

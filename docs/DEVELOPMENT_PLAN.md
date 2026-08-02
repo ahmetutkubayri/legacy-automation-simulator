@@ -169,15 +169,30 @@ review, verification that every documented command still behaves as
 written, a fresh-clone run on both operating systems, and only then a
 release tag.
 
-T16 is in progress. Three repairs have landed: the sample configuration
-path-resolution fix, the audit and logging claim alignment, and the
-ignored-configuration-surface cleanup. That last one removed five keys
-the CLI accepted and then ignored — `log_level`, and the simulator's
+T16 is in progress. Four repairs have landed: the sample configuration
+path-resolution fix, the audit and logging claim alignment, the
+ignored-configuration-surface cleanup, and the source-distribution
+packaging policy. The configuration cleanup removed five keys the CLI
+accepted and then ignored — `log_level`, and the simulator's
 `fault_profile`, `fault_seed`, `busy_delay_min_ms` and
 `busy_delay_max_ms` — so the schema now rejects them as unknown keys
 instead of silently discarding them. The simulator's fault model and the
 logging facility are untouched and still reached directly through
-`las.simulator` and `las.logging_setup`. Packaging, the version-source
+`las.simulator` and `las.logging_setup`.
+
+The packaging repair settles what a release archive carries. Setuptools'
+default had swept the test modules into the source distribution while
+leaving behind everything they import and read, so the archive advertised
+a suite it could not collect. `MANIFEST.in` now prunes it deliberately:
+the wheel carries the `las` package and its metadata, the source
+distribution adds only the build configuration, `README.md` and
+`LICENSE`, and both omit the repository-only surface — tests, helpers,
+fixtures, goldens, documentation, scripts, sample data and CI
+configuration. The runnable suite lives in the Git repository, not in a
+release archive.
+
+The version-source cleanup has not started: `0.1.0` is still maintained
+by hand in both `pyproject.toml` and `src/las/__init__.py`. That
 cleanup, the remaining hardening items, an independent final
 verification and the release tag all remain, so T16 is not finished and
 the repository has not been tagged or released.
