@@ -18,6 +18,7 @@ because ``"run"`` appears inside ``"running"`` and would prove nothing.
 from __future__ import annotations
 
 import re
+from inspect import signature
 from pathlib import Path
 
 import pytest
@@ -47,6 +48,7 @@ from las.pipeline import (
     Stage,
     WriteBackMode,
     batch_id,
+    run_pipeline,
     stage_order,
 )
 from las.report import CANONICAL_ENTRY_DATE, WORKBOOK_EPOCH, OutputFormat
@@ -408,12 +410,48 @@ def test_the_contract_documents_exactly_the_eleven_payload_keys() -> None:
 
 def test_the_contract_states_the_success_and_failure_event_sequences() -> None:
     assert says(
-        "A successful run emits `pipeline_started`, one "
+        "Given a trail, a successful run emits `pipeline_started`, one "
         "`pipeline_stage_completed` per stage in stage order, "
         "`pipeline_artifacts_committed`, then `pipeline_completed`"
     )
     assert says("A failure emits `pipeline_failed` once with the last active stage "
                 "and a stable `error_code`, and no `pipeline_completed`")
+
+
+def test_the_contract_states_audit_is_optional_and_off_by_default() -> None:
+    """The guarantee above is conditional, and the contract must say so.
+
+    Checked against the signature rather than prose alone: the default really
+    is ``None``, so a contract promising unconditional events would be wrong.
+    """
+    assert says("Audit is optional and disabled by default")
+    assert says("no event is recorded and no file is written")
+    assert signature(run_pipeline).parameters["trail"].default is None
+
+
+def test_the_contract_states_the_cli_supplies_no_trail_and_no_logging() -> None:
+    assert says("The `las` commands supply no trail")
+    assert says("no command configures a console or file handler")
+
+
+def test_the_contract_keeps_audit_output_outside_the_artifact_set() -> None:
+    """Only the guarantees the pipeline and the writer actually own.
+
+    The writer never emits audit output and the transaction never carries it.
+    Where a caller-supplied trail physically lives is the caller's business —
+    ``run_pipeline`` neither validates nor relocates it — so the contract must
+    promise nothing about that location.
+    """
+    assert says(
+        "Audit output is operational metadata, not one of the three report "
+        "artifacts: the report writer neither creates nor publishes it, and it "
+        "is outside the atomic report-directory publication transaction"
+    )
+    assert says(
+        "A library caller that supplies a trail controls its location and "
+        "lifecycle, subject to the audit facility's own path rules"
+    )
+    assert "never inside the published output directory" not in FLAT
 
 
 def test_the_contract_forbids_unsafe_audit_content() -> None:
@@ -595,7 +633,7 @@ def test_the_engine_module_states_it_holds_no_business_rule() -> None:
 
 def test_the_contract_keeps_orchestration_mechanics_out_of_the_stages() -> None:
     assert says(
-        "Configuration loading, logging, audit setup, publication and result "
+        "Configuration loading, optional audit setup, publication and result "
         "construction are orchestration mechanics, not stages"
     )
 

@@ -34,6 +34,8 @@ src/las/
 ├── config/    models.py, loader.py        # pydantic models, YAML loading
 ├── audit/     trail.py                    # append-only JSONL audit trail
 ├── logging_setup.py                       # console + per-run file logging
+│                                          #   (library facility; no CLI command
+│                                          #    configures it)
 ├── simulator/ store.py, screens.py, system.py, faults.py
 ├── driver/    waits.py, client.py, recovery.py
 ├── ingest/ validate/ match/ reconcile/ report/   # the business layers
@@ -232,7 +234,9 @@ quote them.
   `docs/REPORTING_CONTRACT.md`, which is the authoritative T13 contract.
 * **T14 Pipeline + CLI** — seven-stage orchestrator (`EXTRACT` →
   `INGEST` → `VALIDATE` → `MATCH` → `RECONCILE` → `REPORT` → `VERIFY`)
-  wired to config, audit trail, and logging; `las demo | run |
+  wired to configuration; the pipeline keeps optional caller-supplied
+  audit support, while the CLI constructs no audit trail and leaves
+  logging an unconfigured library facility; `las demo | run |
   generate-fixtures`; end-to-end tests on both OSes; demo <60 s,
   deterministic per seed. Every stage before `VERIFY` is pure — nothing
   is created on disk until the gate passes — and the artifact set is

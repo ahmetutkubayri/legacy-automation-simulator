@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "legacy-automation-simulator"
 version = "0.1.0"
-description = "Enterprise workflow automation against a simulated slow, stateful, faulty legacy system: configurable validation, entity matching, reconciliation, exception reporting, and full audit trails on synthetic data."
+description = "Deterministic workflow automation against a simulated slow, stateful, faulty legacy system: configurable validation, entity matching, reconciliation and exception reporting over synthetic data, with typed failures and optional allowlist-sanitised audit-trail support for library callers."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }

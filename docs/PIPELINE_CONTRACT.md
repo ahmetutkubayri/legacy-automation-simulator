@@ -21,7 +21,7 @@ outcome-to-status mapping anywhere in this task.
 
 `EXTRACT → INGEST → VALIDATE → MATCH → RECONCILE → REPORT → VERIFY`
 
-Configuration loading, logging, audit setup, publication and result
+Configuration loading, optional audit setup, publication and result
 construction are orchestration mechanics, not stages.
 
 | Stage | What it does |
@@ -163,8 +163,20 @@ rename once. Either all four fixtures appear or the directory does not exist.
 
 ## Audit and logging
 
-Operational diagnostics, not report artifacts, and not part of the directory
-transaction. They may exist after a failed run, per existing T3 behaviour.
+Audit is optional and disabled by default. `run_pipeline` takes a `trail`
+keyword defaulting to `None`, and when it is `None` no event is recorded and no
+file is written. The `las` commands supply no trail, so a CLI run emits no audit
+event and creates no audit file. Logging is a library facility too: no command
+configures a console or file handler.
+
+The event guarantees below therefore apply to a run a library caller has given a
+trail. Audit output is operational metadata, not one of the three report
+artifacts: the report writer neither creates nor publishes it, and it is outside
+the atomic report-directory publication transaction. Audit events enter no
+pipeline result and no artifact byte. A library caller that supplies a trail
+controls its location and lifecycle, subject to the audit facility's own path
+rules. Audit and logging may exist after a failed run, per existing T3
+behaviour.
 
 Event names: `pipeline_started`, `pipeline_stage_completed`,
 `pipeline_artifacts_committed`, `pipeline_completed`, `pipeline_failed`.
@@ -173,10 +185,11 @@ Payload keys: `command`, `seed`, `stage`, `count`, `artifact_count`,
 `feed_rows`, `system_rows`, `group_count`, `unresolved_count`, `error_code`,
 `status`. No other key is written.
 
-A successful run emits `pipeline_started`, one `pipeline_stage_completed` per
-stage in stage order, `pipeline_artifacts_committed`, then
-`pipeline_completed`. A failure emits `pipeline_failed` once with the last
-active stage and a stable `error_code`, and no `pipeline_completed`.
+Given a trail, a successful run emits `pipeline_started`, one
+`pipeline_stage_completed` per stage in stage order,
+`pipeline_artifacts_committed`, then `pipeline_completed`. A failure emits
+`pipeline_failed` once with the last active stage and a stable `error_code`,
+and no `pipeline_completed`.
 
 No event carries an input path, an output path, a source or account name, a raw
 row, a raw exception message, artifact bytes, a temporary directory name, a

@@ -81,6 +81,13 @@ operational precisely because audit is not one of the seven stages; the boxes
 between `Pipeline` and `Writer` are packages, not stage names. Stage definitions
 belong to the pipeline contract.
 
+The dashed audit edge is also **conditional, not unconditional**. `run_pipeline`
+takes an optional `trail`; events travel that edge only when a library caller
+supplies one. The `las` commands supply none and configure no logging, so a CLI
+run sends nothing along it and writes no audit or log file. Audit events never
+enter a business result or a report artifact, which is why the edge stops at
+`Audit` and never reaches `Writer`.
+
 ## The dependency rule
 
 Dependencies point one way: **downward, toward the layer that owns the data**.
@@ -137,6 +144,15 @@ seeded injector, so a given seed reproduces a given sequence of faults exactly.
 
 The simulator's job is to be difficult in reproducible ways. It has no notion of
 retrying, and no code path that hides a fault it has decided to produce.
+
+The selectable profiles are a **tested lower-level capability, not a CLI
+feature**. The fault model, the injector and the profiles are public API and are
+exercised heavily by the driver and simulator suites, but no `las` command
+constructs a `FaultInjector`, so the CLI does not activate those optional
+injected interaction faults. That is a statement about the simulator's
+behaviour, not about the data: the synthetic feeds still carry every deliberate
+validation, matching and reconciliation defect the generator puts there.
+Reaching the profiles means driving `LegacySystem` directly.
 
 `update_status` exists on the driver and is dry-run by default, but the pipeline
 does not call it. Orchestration is read-only.
@@ -224,10 +240,11 @@ Exact container fields and property values are in
 - **No partial output.** Because publication is a rename, a failed run leaves no
   output directory at all — and an existing directory is refused rather than
   merged into.
-- **Audit records both outcomes.** A successful run emits a completion event; a
-  failed run emits exactly one failure event carrying the last active stage and
-  the stable error code, and no completion event. Audit files are operational
-  and may survive a failed run.
+- **Audit records both outcomes — when it is enabled.** Given a caller-supplied
+  trail, a successful run emits a completion event; a failed run emits exactly
+  one failure event carrying the last active stage and the stable error code,
+  and no completion event. Audit files are operational and may survive a failed
+  run. With no trail — the CLI's case — nothing is recorded and no file exists.
 
 ## Trade-offs and rejected alternatives
 

@@ -63,8 +63,12 @@ exists to satisfy it.
 - **Report-only orchestration.** The pipeline never mutates the simulated
   system. Write-back is reported as disabled, with zero updates attempted and
   zero applied.
-- **Safe audit events.** Audit payloads are restricted to an allowlist of
-  scalar keys — no paths, names, row contents or exception text.
+- **Optional, safe audit events.** A library caller may hand the pipeline an
+  audit trail. The `las` commands do not supply one, so a CLI run records no
+  event and writes no audit or log file, and no command configures console or
+  file logging. When a trail *is* supplied, payloads are restricted to an
+  allowlist of scalar keys — no paths, names, row contents or exception text —
+  and the events stay outside the three report artifacts.
 - **Cross-platform CI.** Ubuntu and Windows, Python 3.11 and 3.12, on every
   push: [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
@@ -160,8 +164,9 @@ committed to this repository.
   reconciliation and reporting import nothing from the pipeline or the CLI, and
   architecture tests enforce that in both directions.
 - **Publication is one atomic transaction**, not three file writes.
-- **Audit logging is operational**, not a pipeline stage. It may exist after a
-  failed run and never enters a result.
+- **Audit is operational and optional**, not a pipeline stage. It exists only
+  when a library caller supplies a trail, may then survive a failed run, and
+  never enters a result. The CLI supplies none and configures no logging.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the layer map and the
 dependency rule, [docs/PIPELINE_CONTRACT.md](docs/PIPELINE_CONTRACT.md) for
@@ -234,8 +239,9 @@ explicit — an acceptable trade for results that cannot drift.
 
 **Typed failures instead of leaking lower-level exceptions.** Each layer
 converts what it catches into its own error type with a stable code. Debugging
-loses the original traceback at the boundary, which is why the audit trail
-records the stage; the gain is a CLI that cannot print a path or a row value.
+loses the original traceback at the boundary, which is why an enabled audit
+trail records the stage; the gain is a CLI that cannot print a path or a row
+value.
 
 **Report-only orchestration.** The driver's status write-back is implemented and
 tested, but deliberately not wired in. Nothing in this project states which
