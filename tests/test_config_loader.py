@@ -17,7 +17,8 @@ def test_sample_config_loads(sample_config_path: Path) -> None:
     config = load_config(sample_config_path)
     assert isinstance(config, RunConfig)
     assert config.seed == 42
-    assert config.simulator.fault_profile == "mild"
+    assert config.simulator.visible_rows == 12
+    assert config.simulator.buffer_rows == 3
     assert [feed.name for feed in config.feeds] == ["feed_alpha", "feed_beta"]
     assert config.feeds[0].header_aliases["Record Id"] == "record_id"
     assert config.report.variance_bands == [0.0, 1.0, 5.0]
@@ -101,3 +102,33 @@ def test_unknown_key_reported_with_location(tmp_path: Path) -> None:
     with pytest.raises(ConfigError) as excinfo:
         load_config(path)
     assert "simulator.warp_speed" in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    ("block", "location"),
+    [
+        ("log_level: INFO", "log_level"),
+        ("simulator:\n          fault_profile: none", "simulator.fault_profile"),
+    ],
+)
+def test_a_removed_key_surfaces_as_a_configuration_error(
+    tmp_path: Path, block: str, location: str
+) -> None:
+    """A config written against the old schema fails loudly, not silently.
+
+    Both keys were valid once, so this proves the loader reports the removal
+    through the ordinary ``ConfigError`` path rather than ignoring the value.
+    """
+    path = write_config(
+        tmp_path,
+        f"""
+        seed: 1
+        feeds:
+          - name: feed_a
+            path: feed_a.csv
+        {block}
+        """,
+    )
+    with pytest.raises(ConfigError) as excinfo:
+        load_config(path)
+    assert location in str(excinfo.value)

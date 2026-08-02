@@ -3,15 +3,10 @@
 
 seed: 42
 output_dir: output
-log_level: INFO
 
 simulator:
-  fault_profile: mild
-  fault_seed: 7
   visible_rows: 12
   buffer_rows: 3
-  busy_delay_min_ms: 5
-  busy_delay_max_ms: 50
 
 # Every relative path in this file is resolved against the directory holding
 # this file, never against the working directory or the repository root. These

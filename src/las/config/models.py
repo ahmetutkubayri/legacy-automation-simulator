@@ -30,9 +30,7 @@ ALLOWED_EMAIL_DOMAIN = "example.com"
 
 _RECIPIENT_PATTERN = re.compile(r"[A-Za-z0-9._%+-]+@example\.com")
 
-FaultProfileName = Literal["none", "mild", "hostile"]
 ReportFormat = Literal["xlsx", "json", "html"]
-LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR"]
 
 
 def _ensure_relative_path(value: str) -> str:
@@ -56,20 +54,17 @@ class StrictModel(BaseModel):
 
 
 class SimulatorConfig(StrictModel):
-    """Behavior of the simulated legacy system."""
+    """Behavior of the simulated legacy system.
 
-    fault_profile: FaultProfileName = "none"
-    fault_seed: int = Field(default=1, ge=0)
+    Only the two window settings the pipeline actually passes to
+    ``LegacySystem``. Fault profiles, fault seeds and busy delays belong to
+    ``las.simulator`` and are reached by constructing a ``FaultInjector`` or a
+    ``LegacySystem`` directly; the CLI wires none of them, so the schema no
+    longer accepts keys it would silently ignore.
+    """
+
     visible_rows: int = Field(default=12, ge=1, le=500)
     buffer_rows: int = Field(default=3, ge=0, le=50)
-    busy_delay_min_ms: int = Field(default=5, ge=0, le=10_000)
-    busy_delay_max_ms: int = Field(default=50, ge=0, le=10_000)
-
-    @model_validator(mode="after")
-    def _delays_ordered(self) -> SimulatorConfig:
-        if self.busy_delay_min_ms > self.busy_delay_max_ms:
-            raise ValueError("busy_delay_min_ms must be <= busy_delay_max_ms")
-        return self
 
 
 class FeedConfig(StrictModel):
@@ -242,7 +237,6 @@ class RunConfig(StrictModel):
 
     seed: int = Field(ge=0)
     output_dir: str = "output"
-    log_level: LogLevel = "INFO"
     simulator: SimulatorConfig = Field(default_factory=SimulatorConfig)
     feeds: list[FeedConfig] = Field(min_length=1)
     validation: ValidationConfig = Field(default_factory=ValidationConfig)

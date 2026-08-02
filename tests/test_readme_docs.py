@@ -521,9 +521,22 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
     flat = " ".join(PLAN.split())
     assert "T16 is in progress" in flat
     assert "Nothing in T16 has started" not in flat
-    assert "path-resolution repair is complete" in flat
-    assert "audit and logging claim-alignment pass" in flat
-    assert "ignored-configuration-surface pass has not started" in flat
+
+    # The three landed repairs, named.
+    assert "path-resolution" in flat
+    assert "audit and logging claim alignment" in flat
+    assert "ignored-configuration-surface cleanup" in flat
+    assert "ignored-configuration-surface pass has not started" not in flat
+
+    # The removed keys are recorded, and the lower-level APIs are not claimed gone.
+    for key in ("log_level", "fault_profile", "fault_seed",
+                "busy_delay_min_ms", "busy_delay_max_ms"):
+        assert key in flat, f"the plan does not record the removed key {key}"
+    assert "fault model and the logging facility are untouched" in flat
+
+    # What is still outstanding, and that nothing has shipped.
+    assert "Packaging" in flat
+    assert "the release tag all remain" in flat
     assert "the repository has not been tagged or released" in flat
     for overstated in ("T16 is complete", "T16 is finished", "ready to publish",
                        "release readiness has been achieved"):

@@ -22,9 +22,8 @@ def test_minimal_config_applies_defaults(base_config: dict) -> None:
     config = RunConfig.model_validate(base_config)
     assert config.seed == 1
     assert config.output_dir == "output"
-    assert config.log_level == "INFO"
-    assert config.simulator.fault_profile == "none"
     assert config.simulator.visible_rows == 12
+    assert config.simulator.buffer_rows == 3
     assert config.validation.required_fields == ["record_id", "external_ref", "amount"]
     assert config.match.fuzzy_threshold == pytest.approx(0.87)
     assert config.match.review_threshold == pytest.approx(0.70)
@@ -70,11 +69,6 @@ def test_feeds_must_be_a_list(base_config: dict) -> None:
     assert_invalid(base_config, "feeds")
 
 
-def test_log_level_must_be_known(base_config: dict) -> None:
-    base_config["log_level"] = "CHATTY"
-    assert_invalid(base_config, "log_level")
-
-
 # --- invalid ranges and thresholds -----------------------------------------
 
 
@@ -86,11 +80,6 @@ def test_negative_seed_is_rejected(base_config: dict) -> None:
 def test_zero_visible_rows_is_rejected(base_config: dict) -> None:
     base_config["simulator"] = {"visible_rows": 0}
     assert_invalid(base_config, "simulator.visible_rows")
-
-
-def test_busy_delay_min_above_max_is_rejected(base_config: dict) -> None:
-    base_config["simulator"] = {"busy_delay_min_ms": 100, "busy_delay_max_ms": 10}
-    assert_invalid(base_config, "busy_delay_min_ms must be <= busy_delay_max_ms")
 
 
 def test_fuzzy_threshold_above_one_is_rejected(base_config: dict) -> None:
@@ -122,7 +111,7 @@ def test_unknown_top_level_key_is_rejected(base_config: dict) -> None:
 
 
 def test_unknown_nested_key_is_rejected(base_config: dict) -> None:
-    base_config["simulator"] = {"fault_profile": "none", "turbo_mode": True}
+    base_config["simulator"] = {"visible_rows": 12, "turbo_mode": True}
     assert_invalid(base_config, "simulator.turbo_mode")
 
 
@@ -131,18 +120,38 @@ def test_unknown_feed_key_is_rejected(base_config: dict) -> None:
     assert_invalid(base_config, "feeds.0.retries")
 
 
-# --- fault profile ----------------------------------------------------------
+# --- the unwired configuration surface stays removed -------------------------
+#
+# These five keys were accepted and validated but reached nothing: the pipeline
+# never gave ``LegacySystem`` a ``fault_injector`` or a ``busy_delay_seconds``,
+# and no command called ``setup_logging``. They are gone from the schema, so
+# ``extra="forbid"`` now refuses them. Each case supplies a *previously valid*
+# value, which is what proves the rejection comes from removing the field
+# rather than from a bad value.
+#
+# The simulator's fault model itself is untouched and still reached directly
+# through ``las.simulator`` — see the driver and simulator suites.
 
 
-def test_unknown_fault_profile_is_rejected(base_config: dict) -> None:
-    base_config["simulator"] = {"fault_profile": "chaotic"}
-    assert_invalid(base_config, "simulator.fault_profile")
+def test_the_removed_log_level_key_is_rejected(base_config: dict) -> None:
+    base_config["log_level"] = "INFO"
+    assert_invalid(base_config, "log_level")
 
 
-@pytest.mark.parametrize("profile", ["none", "mild", "hostile"])
-def test_known_fault_profiles_are_accepted(base_config: dict, profile: str) -> None:
-    base_config["simulator"] = {"fault_profile": profile}
-    assert RunConfig.model_validate(base_config).simulator.fault_profile == profile
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("fault_profile", "none"),
+        ("fault_seed", 1),
+        ("busy_delay_min_ms", 5),
+        ("busy_delay_max_ms", 50),
+    ],
+)
+def test_the_removed_simulator_keys_are_rejected(
+    base_config: dict, key: str, value: object
+) -> None:
+    base_config["simulator"] = {key: value}
+    assert_invalid(base_config, f"simulator.{key}")
 
 
 # --- feeds: names, paths, aliases -------------------------------------------

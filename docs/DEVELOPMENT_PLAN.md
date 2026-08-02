@@ -169,12 +169,18 @@ review, verification that every documented command still behaves as
 written, a fresh-clone run on both operating systems, and only then a
 release tag.
 
-T16 is in progress. The sample configuration path-resolution repair is
-complete, and so is the audit and logging claim-alignment pass. The
-ignored-configuration-surface pass has not started. Packaging, the
-version-source cleanup, the remaining hardening items, an independent
-final verification and the release tag all remain, so T16 is not
-finished and the repository has not been tagged or released.
+T16 is in progress. Three repairs have landed: the sample configuration
+path-resolution fix, the audit and logging claim alignment, and the
+ignored-configuration-surface cleanup. That last one removed five keys
+the CLI accepted and then ignored — `log_level`, and the simulator's
+`fault_profile`, `fault_seed`, `busy_delay_min_ms` and
+`busy_delay_max_ms` — so the schema now rejects them as unknown keys
+instead of silently discarding them. The simulator's fault model and the
+logging facility are untouched and still reached directly through
+`las.simulator` and `las.logging_setup`. Packaging, the version-source
+cleanup, the remaining hardening items, an independent final
+verification and the release tag all remain, so T16 is not finished and
+the repository has not been tagged or released.
 
 ## Task clauses
 
