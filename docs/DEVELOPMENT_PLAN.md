@@ -158,17 +158,23 @@ only uncovered lines are defensive branches unreachable by
 construction. Exact counts are deliberately not written here — they
 change with every task, and the suite itself is the authority.
 
-## Next task: T16 — pre-publication sweep and release readiness
+## Current task: T16 — pre-publication sweep and release readiness
 
 T16 is the only remaining task. It adds no feature: it audits what is
-already here and decides whether the repository is fit to publish. Its
-checklist is at the end of this document — a full-history secret scan,
-generic pattern scans over every tracked file, fixture regeneration
-against the pinned hashes, metadata review, verification that every
-documented command still behaves as written, a fresh-clone run on both
-operating systems, and only then a release tag.
+already here, repairs what the audit finds, and decides whether the
+repository is fit to publish. Its checklist is at the end of this
+document — a full-history secret scan, generic pattern scans over every
+tracked file, fixture regeneration against the pinned hashes, metadata
+review, verification that every documented command still behaves as
+written, a fresh-clone run on both operating systems, and only then a
+release tag.
 
-Nothing in T16 has started.
+T16 is in progress. The sample configuration path-resolution repair is
+complete, and so is the audit and logging claim-alignment pass. The
+ignored-configuration-surface pass has not started. Packaging, the
+version-source cleanup, the remaining hardening items, an independent
+final verification and the release tag all remain, so T16 is not
+finished and the repository has not been tagged or released.
 
 ## Task clauses
 

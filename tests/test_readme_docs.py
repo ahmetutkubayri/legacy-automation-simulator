@@ -502,9 +502,9 @@ def test_the_completed_ledger_records(task: str) -> None:
     assert re.search(rf"^\| {task} \|", ledger, re.M), f"{task} missing from the ledger"
 
 
-def test_the_next_task_is_the_final_audit() -> None:
-    assert re.search(r"^## Next task: T16\b", PLAN, re.M)
-    assert not re.search(r"^## Next task: T8\b", PLAN, re.M)
+def test_the_current_task_is_the_final_audit() -> None:
+    assert re.search(r"^## Current task: T16\b", PLAN, re.M)
+    assert not re.search(r"^## (Current|Next) task: T8\b", PLAN, re.M)
 
 
 def test_the_plan_carries_no_stale_status_claim() -> None:
@@ -512,8 +512,22 @@ def test_the_plan_carries_no_stale_status_claim() -> None:
         assert stale not in PLAN, f"stale claim remains: {stale}"
 
 
-def test_the_plan_states_t16_has_not_started() -> None:
-    assert "Nothing in T16 has started" in " ".join(PLAN.split())
+def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
+    """The plan must track T16's real state, neither frozen nor overstated.
+
+    Written as one test because the claims are one fact: which passes have
+    landed, which have not, and that nothing has been released yet.
+    """
+    flat = " ".join(PLAN.split())
+    assert "T16 is in progress" in flat
+    assert "Nothing in T16 has started" not in flat
+    assert "path-resolution repair is complete" in flat
+    assert "audit and logging claim-alignment pass" in flat
+    assert "ignored-configuration-surface pass has not started" in flat
+    assert "the repository has not been tagged or released" in flat
+    for overstated in ("T16 is complete", "T16 is finished", "ready to publish",
+                       "release readiness has been achieved"):
+        assert overstated not in flat, f"the plan overstates progress: {overstated}"
 
 
 @pytest.mark.parametrize(
@@ -570,14 +584,14 @@ def test_the_plan_no_longer_requires_screenshots() -> None:
 
 
 def test_every_commit_hash_in_the_ledger_is_forty_hex_characters() -> None:
-    ledger = PLAN.split("## Completed tasks", 1)[1].split("## Next task", 1)[0]
+    ledger = PLAN.split("## Completed tasks", 1)[1].split("## Current task", 1)[0]
     for digest in re.findall(r"`([0-9a-f]{7,})`", ledger):
         assert len(digest) == 40, f"{digest} is not a full commit hash"
 
 
 def ledger_rows() -> dict[str, str]:
     """Task identifier to the contents of its commit cell."""
-    ledger = PLAN.split("## Completed tasks", 1)[1].split("## Next task", 1)[0]
+    ledger = PLAN.split("## Completed tasks", 1)[1].split("## Current task", 1)[0]
     return {
         task: cell.strip()
         for task, cell in re.findall(r"^\| (T\d+) \|([^|]*)\|", ledger, re.M)
