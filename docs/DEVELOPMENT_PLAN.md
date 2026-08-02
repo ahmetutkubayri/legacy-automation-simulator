@@ -169,16 +169,17 @@ review, verification that every documented command still behaves as
 written, a fresh-clone run on both operating systems, and only then a
 release tag.
 
-T16 is in progress. Four repairs have landed: the sample configuration
+T16 is in progress. Five repairs have landed: the sample configuration
 path-resolution fix, the audit and logging claim alignment, the
-ignored-configuration-surface cleanup, and the source-distribution
-packaging policy. The configuration cleanup removed five keys the CLI
-accepted and then ignored — `log_level`, and the simulator's
-`fault_profile`, `fault_seed`, `busy_delay_min_ms` and
-`busy_delay_max_ms` — so the schema now rejects them as unknown keys
-instead of silently discarding them. The simulator's fault model and the
-logging facility are untouched and still reached directly through
-`las.simulator` and `las.logging_setup`.
+ignored-configuration-surface cleanup, the source-distribution
+packaging policy, and the single-version-source cleanup. The
+configuration cleanup removed five keys the CLI accepted and then
+ignored — `log_level`, and the simulator's `fault_profile`,
+`fault_seed`, `busy_delay_min_ms` and `busy_delay_max_ms` — so the
+schema now rejects them as unknown keys instead of silently discarding
+them. The simulator's fault model and the logging facility are
+untouched and still reached directly through `las.simulator` and
+`las.logging_setup`.
 
 The packaging repair settles what a release archive carries. Setuptools'
 default had swept the test modules into the source distribution while
@@ -191,11 +192,20 @@ fixtures, goldens, documentation, scripts, sample data and CI
 configuration. The runnable suite lives in the Git repository, not in a
 release archive.
 
-The version-source cleanup has not started: `0.1.0` is still maintained
-by hand in both `pyproject.toml` and `src/las/__init__.py`. That
-cleanup, the remaining hardening items, an independent final
-verification and the release tag all remain, so T16 is not finished and
-the repository has not been tagged or released.
+The version-source cleanup is complete. `0.1.0` had been maintained by
+hand in two places, `pyproject.toml` and `src/las/__init__.py`, which can
+drift apart silently. `__version__` in `src/las/__init__.py` is now the
+authoritative source: `pyproject.toml` declares `dynamic = ["version"]`
+and setuptools derives the package metadata from that attribute, reading
+it statically — it parses the module rather than importing it, so the
+build needs no installed distribution and importing `las` from a plain
+source tree still reports the version without any metadata lookup. The
+package version is unchanged at `0.1.0`, and `las --version` still prints
+`las 0.1.0`.
+
+The remaining hardening items, an independent final verification and the
+release tag all remain, so T16 is not finished and the repository has not
+been tagged or released.
 
 ## Task clauses
 

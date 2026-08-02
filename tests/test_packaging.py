@@ -45,6 +45,8 @@ from pathlib import Path
 
 import pytest
 
+import las
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 #: The working-tree surfaces that can affect archive membership. Everything a
@@ -101,15 +103,29 @@ def normalise(name: str) -> str:
     return name.replace("\\", "/")
 
 
-def project_metadata() -> tuple[str, str]:
-    """The distribution's filename stem and version, from the current config.
+def read_manifest() -> dict:
+    """``pyproject.toml``, parsed."""
+    return tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
-    Read rather than restated: this module must not become a second place the
-    version literal lives.
+
+def project_metadata() -> tuple[str, str]:
+    """The distribution's filename stem, and the one authoritative version.
+
+    The name comes from the manifest; the version comes from the package
+    attribute the manifest now derives it from. Read rather than restated:
+    this module must not become a second place either literal lives.
     """
-    manifest = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    project = manifest["project"]
-    return project["name"].replace("-", "_"), project["version"]
+    return read_manifest()["project"]["name"].replace("-", "_"), las.__version__
+
+
+def metadata_version(document: str) -> str:
+    """The ``Version`` field of a core-metadata document."""
+    for line in document.splitlines():
+        if not line.strip():
+            break  # The header block ends at the first blank line.
+        if line.startswith("Version:"):
+            return line.partition(":")[2].strip()
+    raise AssertionError("the metadata document declares no Version")
 
 
 @pytest.fixture(scope="session")
@@ -278,3 +294,43 @@ def test_neither_archive_leaks_a_local_build_path(archives: Archives) -> None:
             text = archive.read(name).decode("utf-8", errors="replace")
             for leak in leaks:
                 assert leak not in text, f"{name} carries a local path"
+
+
+# --- one version source -----------------------------------------------------------
+
+
+def test_the_manifest_names_the_package_attribute_as_its_only_version_source() -> None:
+    """The declaration, not just the value.
+
+    Asserting that two versions merely *agree* would pass again the moment a
+    second static literal reappeared beside the first. This pins the wiring:
+    there is no static version key, and the metadata is derived from the one
+    attribute that owns it.
+    """
+    manifest = read_manifest()
+    assert "version" not in manifest["project"], (
+        "a static version literal is back in [project]; the package attribute is the source"
+    )
+    assert manifest["project"]["dynamic"] == ["version"]
+    assert manifest["tool"]["setuptools"]["dynamic"]["version"] == {"attr": "las.__version__"}
+
+
+def test_both_archives_publish_the_version_the_package_declares(archives: Archives) -> None:
+    """End to end: what setuptools resolved is what the archives carry."""
+    with zipfile.ZipFile(archives.wheel_path) as archive:
+        (member,) = [n for n in archives.wheel_members if n.endswith(".dist-info/METADATA")]
+        wheel_version = metadata_version(archive.read(member).decode("utf-8"))
+
+    with tarfile.open(archives.sdist_path) as archive:
+        (member,) = [
+            name
+            for name in archives.sdist_members
+            if name.endswith("/PKG-INFO") and name.count("/") == 1
+        ]
+        extracted = archive.extractfile(member)
+        assert extracted is not None
+        sdist_version = metadata_version(extracted.read().decode("utf-8"))
+
+    assert wheel_version == las.__version__
+    assert sdist_version == las.__version__
+    assert wheel_version == sdist_version

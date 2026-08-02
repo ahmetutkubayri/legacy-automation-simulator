@@ -528,6 +528,7 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
     assert "ignored-configuration-surface cleanup" in flat
     assert "ignored-configuration-surface pass has not started" not in flat
     assert "source-distribution packaging policy" in flat
+    assert "single-version-source cleanup" in flat
 
     # The removed keys are recorded, and the lower-level APIs are not claimed gone.
     for key in ("log_level", "fault_profile", "fault_seed",
@@ -540,9 +541,13 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
     assert "The runnable suite lives in the Git repository, not in a release archive" in flat
     assert "packaging repair has not started" not in flat
 
-    # The version-source cleanup has *not* landed, and the plan says so.
-    assert "The version-source cleanup has not started" in flat
-    assert "the version-source cleanup has landed" not in flat
+    # The version-source cleanup has landed, and the plan names the one source.
+    assert "The version-source cleanup is complete" in flat
+    assert "The version-source cleanup has not started" not in flat
+    assert "`__version__` in `src/las/__init__.py` is now the authoritative source" in flat
+    assert 'declares `dynamic = ["version"]`' in flat
+    assert "setuptools derives the package metadata from that attribute" in flat
+    assert "The package version is unchanged at `0.1.0`" in flat
 
     # What is still outstanding, and that nothing has shipped.
     assert "the release tag all remain" in flat
