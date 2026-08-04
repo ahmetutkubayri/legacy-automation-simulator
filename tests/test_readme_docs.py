@@ -25,6 +25,7 @@ from pathlib import Path
 
 import pytest
 
+import las
 from las.cli import (
     EXIT_CONFIGURATION,
     EXIT_EXECUTION,
@@ -531,7 +532,8 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
     assert "source-distribution packaging policy" in flat
     assert "single-version-source cleanup" in flat
     assert "clock and determinism wording alignment" in flat
-    assert "Six repairs have landed" in flat
+    assert "release-plan alignment" in flat
+    assert "Seven repairs have landed" in flat
 
     # The removed keys are recorded, and the lower-level APIs are not claimed gone.
     for key in ("log_level", "fault_profile", "fault_seed",
@@ -562,6 +564,28 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
     assert "nothing in the CLI or the pipeline selects it" in flat
     assert "the CLI constructs no such trail" in flat
     assert "no executable statement changed" in flat
+
+    # The release plan now names a tag the metadata can support. Checked
+    # against the real classifier and the real package version, not against
+    # the plan's own prose, so a version bump would fail here.
+    manifest = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert las.__version__ == "0.1.0"
+    assert "Development Status :: 3 - Alpha" in manifest["project"]["classifiers"]
+    assert "The release-plan alignment is complete" in flat
+    assert "The release-plan alignment has not started" not in flat
+    assert "Both instructions now read `v0.1.0`" in flat
+    assert "the first Git tag must match the package version" in flat
+    assert f"The approved first tag is therefore `v{las.__version__}`" in flat
+    assert "no tag exists, no release was created, no changelog was added" in flat
+    assert "Creating the tag stays blocked on" in flat
+
+    # The corrected instruction reaches both places that carried the old one,
+    # and no section still asks for the tag the metadata cannot support.
+    clause = PLAN.split("* **T16 Pre-publication sweep**", 1)[1].split("\n\n", 1)[0]
+    checklist = PLAN.split("## Pre-publication checklist", 1)[1]
+    assert "tag v0.1.0" in " ".join(clause.split())
+    assert "Tag `v0.1.0`, matching the package version" in " ".join(checklist.split())
+    assert "v1.0.0" not in PLAN, "a v1.0.0 release instruction survives"
 
     # What is still outstanding, and that nothing has shipped.
     assert "The remaining README honesty work" in flat

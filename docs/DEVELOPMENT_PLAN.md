@@ -173,17 +173,18 @@ review, verification that every documented command still behaves as
 written, a fresh-clone run on both operating systems, and only then a
 release tag.
 
-T16 is in progress. Six repairs have landed: the sample configuration
+T16 is in progress. Seven repairs have landed: the sample configuration
 path-resolution fix, the audit and logging claim alignment, the
 ignored-configuration-surface cleanup, the source-distribution
-packaging policy, the single-version-source cleanup, and the clock and
-determinism wording alignment. The configuration cleanup removed five
-keys the CLI accepted and then ignored — `log_level`, and the
-simulator's `fault_profile`, `fault_seed`, `busy_delay_min_ms` and
-`busy_delay_max_ms` — so the schema now rejects them as unknown keys
-instead of silently discarding them. The simulator's fault model and the
-logging facility are untouched and still reached directly through
-`las.simulator` and `las.logging_setup`.
+packaging policy, the single-version-source cleanup, the clock and
+determinism wording alignment, and the release-plan alignment. The
+configuration cleanup removed five keys the CLI accepted and then
+ignored — `log_level`, and the simulator's `fault_profile`,
+`fault_seed`, `busy_delay_min_ms` and `busy_delay_max_ms` — so the
+schema now rejects them as unknown keys instead of silently discarding
+them. The simulator's fault model and the logging facility are untouched
+and still reached directly through `las.simulator` and
+`las.logging_setup`.
 
 The packaging repair settles what a release archive carries. Setuptools'
 default had swept the test modules into the source distribution while
@@ -223,6 +224,21 @@ audit trail may stamp UTC times and mint UUID run identifiers. Those are
 operational values outside the three business report artifacts and their
 determinism contract, and the CLI constructs no such trail. The pass was
 documentation only: no executable statement changed.
+
+The release-plan alignment is complete. Both the T16 clause and the
+checklist below instructed a 1.0 release tag while the package declares
+`0.1.0` and carries the `Development Status :: 3 - Alpha` classifier, so
+the plan asked for a tag that contradicts what the distribution says
+about itself. Both instructions now read `v0.1.0`. The package version is
+unchanged, the classifier is unchanged, and the rule recorded here is that
+the first Git tag must match the package version: a 1.0 tag would read as
+a stable public compatibility commitment, and this project makes no such
+promise about its API today. The approved first tag is therefore `v0.1.0`.
+This pass records that decision and nothing more — no tag exists, no
+release was created, no changelog was added, and there is still no
+package-index publication configuration. Creating the tag stays blocked on
+the mandatory T16 repairs, a fresh independent final verification, a
+four-way CI confirmation and explicit maintainer approval.
 
 The remaining README honesty work, the remaining hardening items, an
 independent final verification and the release tag all remain, so T16 is
@@ -319,7 +335,7 @@ quote them.
   drifts from behaviour fails the build.
 * **T16 Pre-publication sweep** — full-history secret scan, generic
   pattern scans, fixture regeneration check, metadata review, README
-  claim verification, tag v1.0.0, then publish.
+  claim verification, tag v0.1.0, then publish.
 
 ## Development workflow
 
@@ -360,4 +376,5 @@ docs, fixtures, or outputs; descriptive invented naming only.
 8. README accuracy: every command executed verbatim; every
    quantitative claim re-verified on the publication commit; no
    unverifiable performance claims.
-9. Tag `v1.0.0` and publish only after every item above passes.
+9. Tag `v0.1.0`, matching the package version, and publish only after
+   every item above passes.
