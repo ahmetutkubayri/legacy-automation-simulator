@@ -11,6 +11,11 @@ CRLF on Windows. The CSV fixtures are text, so their bytes drifted there while
 never converts it. These tests pin the narrower ``eol=lf`` rule that fixes it,
 so the same regression cannot return silently.
 
+The tracked ignore policy is held to the same standard, because it is part of
+what a reader clones: it must cover every directory the documented commands
+write into, and it must not carry rules for one contributor's local editor
+files.
+
 Everything here only *reads*: it queries Git and compares bytes, and never
 rewrites a fixture. It is cross-platform — no shell, no platform branches, and
 NUL-separated Git output wherever parsing is involved.
@@ -123,6 +128,106 @@ def eol_state(path: str) -> tuple[str, str]:
 def committed_blob(path: str) -> bytes:
     """The bytes Git actually stored, independent of any checkout."""
     return git("cat-file", "blob", f"HEAD:{path}")
+
+
+def is_ignored(path: str) -> bool:
+    """Whether Git's ignore rules cover ``path``.
+
+    Asked of Git rather than parsed out of the file, so precedence, negation
+    and directory rules are decided by the same engine a contributor's clone
+    uses. The path is never created: ``check-ignore`` answers for a pathname
+    whether or not anything exists there.
+    """
+    completed = subprocess.run(
+        ["git", "check-ignore", "-q", "--", path],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        timeout=60,
+    )
+    assert completed.returncode in (0, 1), completed.stderr.decode("utf-8", "replace")
+    return completed.returncode == 0
+
+
+def ignore_rules() -> list[str]:
+    """The declared ignore patterns, without comments or blank lines."""
+    return [
+        line.strip()
+        for line in (REPO_ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+
+
+#: Wildcards wide enough to hide documentation a reader came for.
+BROAD_MARKDOWN_PATTERNS = frozenset({"*.md", "**/*.md", "*.local.md", "**/*.local.md"})
+
+_GLOB_METACHARACTERS = "*?["
+
+
+def names_one_local_markdown_file(rule: str) -> bool:
+    """Whether ``rule`` is an active rule for a single root-level Markdown file.
+
+    That shape — one literal filename, no directory, no glob — is a personal
+    preference and belongs in a local exclude rather than the tracked policy. A
+    path-specific rule for a genuinely generated document is a different thing
+    and stays allowed, which is why the directory and glob tests come first.
+    """
+    if rule.startswith("!"):
+        return False  # A negation re-includes; it hides nothing.
+    if "/" in rule.rstrip("/"):
+        return False  # Path-specific, so not an individual local working file.
+    if any(character in rule for character in _GLOB_METACHARACTERS):
+        return False  # A pattern, judged by BROAD_MARKDOWN_PATTERNS instead.
+    return rule.lower().endswith(".md")
+
+
+# --- the tracked ignore policy --------------------------------------------------
+
+
+def test_the_ignore_policy_covers_generated_output_and_carries_no_personal_rule() -> None:
+    """The shipped ignore rules, judged by what they do rather than how they read.
+
+    Three claims, one fact each. The documented spot-check directory really is
+    ignored, so following this repository's own instructions cannot leave an
+    untracked directory behind. The long-standing output, cache and environment
+    guarantees still hold. And the tracked file carries no rule for one
+    contributor's local working file: a rule naming a single Markdown file is a
+    personal preference, it belongs in a local exclude, and a wildcard broad
+    enough to swallow Markdown would hide real documentation from a reader.
+    """
+    # The path is asked about, never created; `output/` and `logs/` are the
+    # neighbours it was documented alongside.
+    assert is_ignored("temporary-output/check")
+    assert is_ignored("temporary-output/anything/deeper.csv")
+
+    for path in ("output/report.xlsx", "logs/run.jsonl", "__pycache__/module.pyc",
+                 "src/las/module.pyc", ".pytest_cache/v/cache", ".ruff_cache/content",
+                 ".coverage", "htmlcov/index.html", "venv/bin/python",
+                 ".venv/bin/python", "build/lib/las", "dist/package.whl",
+                 "name.egg-info/PKG-INFO"):
+        assert is_ignored(path), f"{path} is no longer ignored"
+
+    rules = ignore_rules()
+    text = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8")
+    assert "Local-only working files" not in text, "an ad-hoc local-file section returned"
+    for rule in rules:
+        assert not names_one_local_markdown_file(rule), (
+            f"{rule} ignores one Markdown file; that belongs in a local exclude"
+        )
+        assert rule.lstrip("!") not in BROAD_MARKDOWN_PATTERNS, (
+            f"{rule} would hide documentation a reader came for"
+        )
+
+    # The predicate refuses only that one shape. A path-specific rule for a
+    # generated document remains available to a future task.
+    assert names_one_local_markdown_file("SCRATCHPAD.md")
+    for allowed in ("docs/generated/summary.md", "build/notes.md", "!KEEP.md",
+                    "reports/*.md"):
+        assert not names_one_local_markdown_file(allowed), f"{allowed} must stay legal"
+
+    # Nothing the reader needs is hidden by the rules above.
+    for path in ("README.md", "docs/DEVELOPMENT_PLAN.md", "docs/ARCHITECTURE.md",
+                 "pyproject.toml", "src/las/__init__.py"):
+        assert not is_ignored(path), f"{path} is ignored but must be readable"
 
 
 # --- the committed set ---------------------------------------------------------

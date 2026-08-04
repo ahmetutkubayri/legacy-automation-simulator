@@ -162,29 +162,33 @@ only uncovered lines are defensive branches unreachable by
 construction. Exact counts are deliberately not written here — they
 change with every task, and the suite itself is the authority.
 
-## Current task: T16 — pre-publication sweep and release readiness
+## Current task: T16 — public-release sweep and release readiness
 
 T16 is the only remaining task. It adds no feature: it audits what is
 already here, repairs what the audit finds, and decides whether the
-repository is fit to publish. Its checklist is at the end of this
-document — a full-history secret scan, generic pattern scans over every
-tracked file, fixture regeneration against the pinned hashes, metadata
-review, verification that every documented command still behaves as
-written, a fresh-clone run on both operating systems, and only then a
-release tag.
+project is ready for its first tagged release. The repository is already
+publicly visible, which is a visibility state and not a release: no
+release tag exists locally or on the remote, and the first GitHub Release
+remains pending, so being readable in public settles nothing about
+whether T16 or the release is finished. Its checklist is at the
+end of this document — a full-history secret scan, generic pattern scans
+over every tracked file, fixture regeneration against the pinned hashes,
+metadata review, verification that every documented command still
+behaves as written, a fresh-clone run on both operating systems, and
+only then a release tag.
 
-T16 is in progress. Seven repairs have landed: the sample configuration
+T16 is in progress. Eight repairs have landed: the sample configuration
 path-resolution fix, the audit and logging claim alignment, the
 ignored-configuration-surface cleanup, the source-distribution
 packaging policy, the single-version-source cleanup, the clock and
-determinism wording alignment, and the release-plan alignment. The
-configuration cleanup removed five keys the CLI accepted and then
-ignored — `log_level`, and the simulator's `fault_profile`,
-`fault_seed`, `busy_delay_min_ms` and `busy_delay_max_ms` — so the
-schema now rejects them as unknown keys instead of silently discarding
-them. The simulator's fault model and the logging facility are untouched
-and still reached directly through `las.simulator` and
-`las.logging_setup`.
+determinism wording alignment, the release-plan alignment, and the
+public-state and ignore-policy alignment. The configuration cleanup
+removed five keys the CLI accepted and then ignored — `log_level`, and
+the simulator's `fault_profile`, `fault_seed`, `busy_delay_min_ms` and
+`busy_delay_max_ms` — so the schema now rejects them as unknown keys
+instead of silently discarding them. The simulator's fault model and the
+logging facility are untouched and still reached directly through
+`las.simulator` and `las.logging_setup`.
 
 The packaging repair settles what a release archive carries. Setuptools'
 default had swept the test modules into the source distribution while
@@ -240,9 +244,24 @@ package-index publication configuration. Creating the tag stays blocked on
 the mandatory T16 repairs, a fresh independent final verification, a
 four-way CI confirmation and explicit maintainer approval.
 
-The remaining README honesty work, the remaining hardening items, an
-independent final verification and the release tag all remain, so T16 is
-not finished and the repository has not been tagged or released.
+The public-state and ignore-policy alignment is complete. The repository
+is now publicly visible, so this document no longer frames T16 as
+deciding whether to publish the repository at all; it frames it as
+deciding whether the project is ready for its first tagged release.
+Those are different states, and only the first has happened. The tracked
+ignore policy was cleaned up in the same pass: the ad-hoc section that
+ignored one editor tool's local working file is gone from the public
+tree, and `temporary-output/` — the spot-check directory this document's
+own commands write into — is now ignored alongside `output/` and
+`logs/`, so following the documented instructions cannot leave an
+untracked directory behind. No local-only file was read, moved or
+renamed, and no history was rewritten.
+
+The remaining README honesty work, the workflow and security hardening,
+the configuration-bound test coverage, an independent final
+verification, the `v0.1.0` tag and the first GitHub Release all remain.
+T16 is therefore not finished: the repository is publicly visible, but
+the repository has not been tagged or released.
 
 ## Task clauses
 
@@ -333,9 +352,11 @@ quote them.
   output. A conformance suite reads the documents and holds them to the
   parser, the public constants and an executed demo, so a claim that
   drifts from behaviour fails the build.
-* **T16 Pre-publication sweep** — full-history secret scan, generic
-  pattern scans, fixture regeneration check, metadata review, README
-  claim verification, tag v0.1.0, then publish.
+* **T16 Public-release sweep** — full-history and current-tree safety
+  scans, fixture regeneration and metadata verification, README claim
+  verification, a fresh independent verification, then tag v0.1.0, and
+  only then create the first GitHub Release, once every gate above has
+  passed and the maintainer has explicitly approved it.
 
 ## Development workflow
 
@@ -358,7 +379,7 @@ synthetic and regenerable from seeds; every email in content uses
 paths, network paths, or URLs (badges excepted) anywhere in code,
 docs, fixtures, or outputs; descriptive invented naming only.
 
-## Pre-publication checklist (summary; execute fully in T16)
+## First-release checklist (summary; execute fully in T16)
 
 1. Secret scan over the **entire git history** (e.g. gitleaks) — zero.
 2. Personal-data scan: every email `example.com`; commit authors are
@@ -376,5 +397,6 @@ docs, fixtures, or outputs; descriptive invented naming only.
 8. README accuracy: every command executed verbatim; every
    quantitative claim re-verified on the publication commit; no
    unverifiable performance claims.
-9. Tag `v0.1.0`, matching the package version, and publish only after
-   every item above passes.
+9. Tag `v0.1.0`, matching the package version, and create the first
+   GitHub Release only after every item above passes and the maintainer
+   has explicitly approved it.

@@ -533,7 +533,8 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
     assert "single-version-source cleanup" in flat
     assert "clock and determinism wording alignment" in flat
     assert "release-plan alignment" in flat
-    assert "Seven repairs have landed" in flat
+    assert "public-state and ignore-policy alignment" in flat
+    assert "Eight repairs have landed" in flat
 
     # The removed keys are recorded, and the lower-level APIs are not claimed gone.
     for key in ("log_level", "fault_profile", "fault_seed",
@@ -581,15 +582,45 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
 
     # The corrected instruction reaches both places that carried the old one,
     # and no section still asks for the tag the metadata cannot support.
-    clause = PLAN.split("* **T16 Pre-publication sweep**", 1)[1].split("\n\n", 1)[0]
-    checklist = PLAN.split("## Pre-publication checklist", 1)[1]
+    clause = PLAN.split("* **T16 Public-release sweep**", 1)[1].split("\n\n", 1)[0]
+    checklist = PLAN.split("## First-release checklist", 1)[1]
     assert "tag v0.1.0" in " ".join(clause.split())
     assert "Tag `v0.1.0`, matching the package version" in " ".join(checklist.split())
     assert "v1.0.0" not in PLAN, "a v1.0.0 release instruction survives"
 
+    # Public visibility and a tagged release are different states, and the plan
+    # must say which one has happened. T16 is framed as the release sweep it now
+    # is, not as a decision about whether to make the repository readable.
+    t16_flat = " ".join(PLAN.split("## Current task: T16", 1)[1].split("\n## ", 1)[0].split())
+    assert re.search(r"^## Current task: T16 — public-release sweep", PLAN, re.M)
+    assert "The repository is already publicly visible" in t16_flat
+    assert "a visibility state and not a release" in t16_flat
+    # Only what was actually checked: tags are enumerable locally and on the
+    # remote, so their absence is a fact. Whether some release object exists
+    # elsewhere was never queried, so the plan states pending work instead.
+    assert "no release tag exists locally or on the remote" in t16_flat
+    assert "the first GitHub Release remains pending" in t16_flat
+    assert "no GitHub Release exists" not in flat, "an unverified release claim survives"
+    assert "fit to publish" not in t16_flat, "the old publish-decision framing survives"
+    assert "Pre-publication" not in PLAN, "a stale pre-publication label survives"
+    assert "then publish" not in " ".join(clause.split()), "ambiguous publish wording survives"
+    assert "The public-state and ignore-policy alignment is complete" in flat
+    assert "The public-state and ignore-policy alignment has not started" not in flat
+    assert "`temporary-output/`" in flat and "is now ignored alongside" in flat
+    assert "no history was rewritten" in flat
+
+    # The checklist ends in a release, not an ambiguous "publish".
+    checklist_flat = " ".join(checklist.split())
+    assert "create the first GitHub Release only after every item above passes" in checklist_flat
+    assert "the maintainer has explicitly approved it" in checklist_flat
+
     # What is still outstanding, and that nothing has shipped.
     assert "The remaining README honesty work" in flat
-    assert "the release tag all remain" in flat
+    assert "the workflow and security hardening" in flat
+    assert "the configuration-bound test coverage" in flat
+    assert "an independent final verification" in flat
+    assert f"the `v{las.__version__}` tag and the first GitHub Release all remain" in flat
+    assert "the repository is publicly visible" in flat
     assert "the repository has not been tagged or released" in flat
     for overstated in ("T16 is complete", "T16 is finished", "ready to publish",
                        "release readiness has been achieved"):

@@ -18,9 +18,7 @@ htmlcov/
 # Project runtime output (regenerated per run)
 output/
 logs/
-
-# Local-only working files
-CLAUDE.md
+temporary-output/
 
 # OS / editor noise
 desktop.ini
