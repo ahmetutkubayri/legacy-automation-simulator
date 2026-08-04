@@ -209,8 +209,16 @@ Determinism here is a structural property, not a test that happens to pass:
   mapping iteration order can never leak into output.
 - **Immutable results.** Frozen dataclasses, tuples and read-only mappings mean
   a result cannot be mutated between production and rendering.
-- **Injected time.** The clock is a dependency. Nothing calls the wall clock
-  during a run.
+- **Injected time.** The clock is a dependency, and every pipeline run injects
+  the simulated one, so a busy delay advances logical time instead of sleeping.
+  Deterministic business execution — the stages, the simulated legacy
+  interactions, reconciliation, report contents, and artifact names and
+  ordering — calls no wall clock. The one exception is deliberately outside
+  that contract: an optional audit trail, which only a library caller
+  constructs and no `las` command does, stamps UTC wall-clock timestamps and
+  mints a nondeterministic UUID run identifier. Those are operational values;
+  they are not part of the three business report artifacts, and no artifact
+  byte depends on them.
 - **Canonical JSON and HTML.** Both are generated with fixed key order and fixed
   formatting, so repeated renders are byte-identical.
 - **A canonical XLSX container.** The workbook's ZIP is rewritten with fixed

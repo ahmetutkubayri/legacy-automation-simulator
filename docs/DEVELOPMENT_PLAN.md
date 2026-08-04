@@ -57,8 +57,12 @@ docs/DEVELOPMENT_PLAN.md    # this file
   `las.simulator` API. All retry loops are bounded `for` loops; no real
   `time.sleep`; no `while True`; no self-recursion; errors carry only
   safe generic context (operation, attempts, screen, timeout).
-* Time is injected everywhere (`SimulatedClock` for tests,
-  `SystemClock` for demos). Tests advance time instantly.
+* Time is injected everywhere. The tests and every pipeline run —
+  `las run` and `las demo` alike — use `SimulatedClock`, so a configured
+  delay advances logical time instantly and nothing sleeps in real time.
+  `SystemClock` remains available to lower-level library callers that
+  explicitly want real monotonic sleeping; no CLI or pipeline path
+  selects it.
 * Audit payloads are allowlist-sanitized before writing; arbitrary
   objects are never serialized.
 
@@ -169,17 +173,17 @@ review, verification that every documented command still behaves as
 written, a fresh-clone run on both operating systems, and only then a
 release tag.
 
-T16 is in progress. Five repairs have landed: the sample configuration
+T16 is in progress. Six repairs have landed: the sample configuration
 path-resolution fix, the audit and logging claim alignment, the
 ignored-configuration-surface cleanup, the source-distribution
-packaging policy, and the single-version-source cleanup. The
-configuration cleanup removed five keys the CLI accepted and then
-ignored — `log_level`, and the simulator's `fault_profile`,
-`fault_seed`, `busy_delay_min_ms` and `busy_delay_max_ms` — so the
-schema now rejects them as unknown keys instead of silently discarding
-them. The simulator's fault model and the logging facility are
-untouched and still reached directly through `las.simulator` and
-`las.logging_setup`.
+packaging policy, the single-version-source cleanup, and the clock and
+determinism wording alignment. The configuration cleanup removed five
+keys the CLI accepted and then ignored — `log_level`, and the
+simulator's `fault_profile`, `fault_seed`, `busy_delay_min_ms` and
+`busy_delay_max_ms` — so the schema now rejects them as unknown keys
+instead of silently discarding them. The simulator's fault model and the
+logging facility are untouched and still reached directly through
+`las.simulator` and `las.logging_setup`.
 
 The packaging repair settles what a release archive carries. Setuptools'
 default had swept the test modules into the source distribution while
@@ -203,9 +207,26 @@ source tree still reports the version without any metadata lookup. The
 package version is unchanged at `0.1.0`, and `las --version` still prints
 `las 0.1.0`.
 
-The remaining hardening items, an independent final verification and the
-release tag all remain, so T16 is not finished and the repository has not
-been tagged or released.
+The clock and determinism wording alignment is complete. This plan and the
+simulator's own module documentation had claimed `SystemClock` supplied
+real delays for demo runs; it does not. Every pipeline path builds
+`LegacySystem` with a `SimulatedClock`, so `las run` and `las demo` both
+advance logical time and neither sleeps in real time. `SystemClock` stays
+exported and tested as a lower-level facility for a library caller that
+explicitly wants real monotonic sleeping, but nothing in the CLI or the
+pipeline selects it. The architecture document's flat claim that nothing
+calls the wall clock during a run is now qualified rather than dropped:
+deterministic business execution — the stages, the simulated legacy
+interactions, reconciliation, report contents, and artifact names and
+ordering — needs no wall-clock time, while an optional caller-supplied
+audit trail may stamp UTC times and mint UUID run identifiers. Those are
+operational values outside the three business report artifacts and their
+determinism contract, and the CLI constructs no such trail. The pass was
+documentation only: no executable statement changed.
+
+The remaining README honesty work, the remaining hardening items, an
+independent final verification and the release tag all remain, so T16 is
+not finished and the repository has not been tagged or released.
 
 ## Task clauses
 

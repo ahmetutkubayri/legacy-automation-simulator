@@ -18,7 +18,7 @@ because ``"run"`` appears inside ``"running"`` and would prove nothing.
 from __future__ import annotations
 
 import re
-from inspect import signature
+from inspect import getsource, signature
 from pathlib import Path
 
 import pytest
@@ -52,14 +52,18 @@ from las.pipeline import (
     stage_order,
 )
 from las.report import CANONICAL_ENTRY_DATE, WORKBOOK_EPOCH, OutputFormat
+from las.simulator import SimulatedClock, SystemClock
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_PATH = REPO_ROOT / "docs" / "PIPELINE_CONTRACT.md"
 CONTRACT = CONTRACT_PATH.read_text(encoding="utf-8")
 PLAN = (REPO_ROOT / "docs" / "DEVELOPMENT_PLAN.md").read_text(encoding="utf-8")
+ARCHITECTURE = (REPO_ROOT / "docs" / "ARCHITECTURE.md").read_text(encoding="utf-8")
 
 #: Whitespace-normalised, so a claim that wrapped across lines still matches.
 FLAT = " ".join(CONTRACT.split())
+PLAN_FLAT = " ".join(PLAN.split())
+ARCHITECTURE_FLAT = " ".join(ARCHITECTURE.split())
 
 #: The eleven payload keys the contract authorises, and nothing else.
 AUDIT_PAYLOAD_KEYS = frozenset(
@@ -558,12 +562,81 @@ def test_the_contract_names_xlsx_as_included_and_says_why() -> None:
     assert says("docs/REPORTING_CONTRACT.md")
 
 
-def test_the_contract_lists_what_determinism_does_not_depend_on() -> None:
+def test_the_documented_clock_and_determinism_story_matches_the_code() -> None:
+    """What determinism does not rest on, and which clock a run really injects.
+
+    One test because it is one fact with several witnesses: the contract's list
+    of inputs an artifact must not depend on, the engine and CLI source that
+    choose the clock and the trail, and the prose in the plan, the architecture
+    document and the simulator module that describes both. Earlier prose said
+    ``SystemClock`` supplied real delays for demo runs; no code path has ever
+    done that, so the false wording is asserted absent rather than merely
+    replaced.
+    """
     for phrase in ("configured feed order", "extraction row order",
                    "mapping iteration", "the clock", "the timezone", "the locale",
                    "the global decimal context", "object identity",
                    "the temporary directory name"):
         assert phrase in FLAT, phrase
+
+    # The engine injects the simulated clock and never the real one, so a run
+    # advances logical time and sleeps for nothing.
+    from las.pipeline import engine
+
+    engine_source = getsource(engine)
+    assert "clock=SimulatedClock()" in engine_source
+    assert "SystemClock" not in engine_source
+
+    clock = SimulatedClock()
+    clock.sleep(5.0)
+    assert clock.now() == 5.0, "a simulated sleep must move logical time only"
+
+    # No `las` command reaches for the real clock or builds an audit trail.
+    from las import cli
+
+    cli_source = getsource(cli)
+    assert "SystemClock" not in cli_source
+    assert "AuditTrail" not in cli_source
+
+    # The simulator module says which clock runs where, and no longer claims
+    # the real one powers the demo.
+    from las.simulator import system as system_module
+
+    module_doc = " ".join((system_module.__doc__ or "").split())
+    simulated_doc = " ".join((SimulatedClock.__doc__ or "").split())
+    real_doc = " ".join((SystemClock.__doc__ or "").split())
+    assert "provides real delays for demo runs" not in module_doc
+    assert "the tests, the pipeline and ``las demo`` all run on" in module_doc
+    assert "no CLI command or pipeline path selects it" in module_doc
+    assert "by the pipeline and by ``las demo``" in simulated_doc
+    assert "rather than sleeping in real time" in simulated_doc
+    assert "Real monotonic clock for explicit library callers" in real_doc
+    assert "No CLI command and no pipeline path selects it" in real_doc
+    assert "demo runs" not in real_doc
+
+    # The plan tells the same story.
+    assert "`SystemClock` for demos" not in PLAN_FLAT
+    assert "`las run` and `las demo` alike — use `SimulatedClock`" in PLAN_FLAT
+    assert "nothing sleeps in real time" in PLAN_FLAT
+    assert "`SystemClock` remains available to lower-level library callers" in PLAN_FLAT
+
+    # The architecture document qualifies its determinism claim instead of
+    # over-claiming: business execution needs no wall clock, while the optional
+    # audit trail an explicit caller supplies really does stamp times and mint
+    # identifiers.
+    from las.audit import trail as trail_module
+
+    trail_source = getsource(trail_module)
+    assert "datetime.now(UTC)" in trail_source and "uuid.uuid4()" in trail_source
+    assert "Nothing calls the wall clock during a run" not in ARCHITECTURE_FLAT
+    assert "Deterministic business execution" in ARCHITECTURE_FLAT
+    assert "calls no wall clock" in ARCHITECTURE_FLAT
+    assert (
+        "an optional audit trail, which only a library caller constructs and no "
+        "`las` command does, stamps UTC wall-clock timestamps and mints a "
+        "nondeterministic UUID run identifier"
+    ) in ARCHITECTURE_FLAT
+    assert "not part of the three business report artifacts" in ARCHITECTURE_FLAT
 
 
 def test_the_contract_states_equal_run_results_and_digests() -> None:

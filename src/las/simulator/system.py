@@ -18,9 +18,14 @@ application driven through screens (see :mod:`las.simulator.screens`):
   system to a pristine main menu (``navigate()`` and ``reset()`` are
   deliberately fault-free paths).
 
-Time is injected: :class:`SimulatedClock` lets tests advance time
-instantly and deterministically, while :class:`SystemClock` provides real
-delays for demo runs. Nothing here reads wall-clock state on its own.
+Time is injected. :class:`SimulatedClock` moves only when told to, so a
+busy delay advances logical time instantly and deterministically instead
+of sleeping in real time; it is the default when no clock is supplied,
+and it is what the tests, the pipeline and ``las demo`` all run on.
+:class:`SystemClock` is the alternative for a library caller that
+explicitly wants real monotonic sleeping — no CLI command or pipeline
+path selects it. :class:`LegacySystem` itself never reads wall-clock
+state; it only asks whichever clock it was given.
 
 Navigation map
 --------------
@@ -85,7 +90,11 @@ class Clock(Protocol):
 
 
 class SimulatedClock:
-    """Deterministic clock for tests: time moves only when told to."""
+    """Deterministic clock: time moves only when told to.
+
+    Used by the tests, by the pipeline and by ``las demo``, so a busy
+    delay advances logical time rather than sleeping in real time.
+    """
 
     def __init__(self) -> None:
         self._now = 0.0
@@ -101,7 +110,12 @@ class SimulatedClock:
 
 
 class SystemClock:
-    """Real monotonic clock for demo runs."""
+    """Real monotonic clock for explicit library callers.
+
+    Available to a caller that builds :class:`LegacySystem` directly and
+    wants real monotonic sleeping. No CLI command and no pipeline path
+    selects it.
+    """
 
     def now(self) -> float:
         return time.monotonic()

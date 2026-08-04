@@ -508,7 +508,8 @@ def test_the_current_task_is_the_final_audit() -> None:
 
 
 def test_the_plan_carries_no_stale_status_claim() -> None:
-    for stale in ("280 tests", "Nothing pushed to a remote", "Remaining tasks after T8"):
+    for stale in ("280 tests", "Nothing pushed to a remote", "Remaining tasks after T8",
+                  "`SystemClock` for demos"):
         assert stale not in PLAN, f"stale claim remains: {stale}"
 
 
@@ -529,6 +530,8 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
     assert "ignored-configuration-surface pass has not started" not in flat
     assert "source-distribution packaging policy" in flat
     assert "single-version-source cleanup" in flat
+    assert "clock and determinism wording alignment" in flat
+    assert "Six repairs have landed" in flat
 
     # The removed keys are recorded, and the lower-level APIs are not claimed gone.
     for key in ("log_level", "fault_profile", "fault_seed",
@@ -549,7 +552,19 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
     assert "setuptools derives the package metadata from that attribute" in flat
     assert "The package version is unchanged at `0.1.0`" in flat
 
+    # The clock and determinism wording alignment has landed, and the plan
+    # records what was false as well as what is now true.
+    assert "The clock and determinism wording alignment is complete" in flat
+    assert "The clock and determinism wording alignment has not started" not in flat
+    assert "`SystemClock` for demos" not in flat
+    assert "Every pipeline path builds `LegacySystem` with a `SimulatedClock`" in flat
+    assert "neither sleeps in real time" in flat
+    assert "nothing in the CLI or the pipeline selects it" in flat
+    assert "the CLI constructs no such trail" in flat
+    assert "no executable statement changed" in flat
+
     # What is still outstanding, and that nothing has shipped.
+    assert "The remaining README honesty work" in flat
     assert "the release tag all remain" in flat
     assert "the repository has not been tagged or released" in flat
     for overstated in ("T16 is complete", "T16 is finished", "ready to publish",
