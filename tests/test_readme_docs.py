@@ -534,7 +534,8 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
     assert "clock and determinism wording alignment" in flat
     assert "release-plan alignment" in flat
     assert "public-state and ignore-policy alignment" in flat
-    assert "Eight repairs have landed" in flat
+    assert "email-namespace policy repair" in flat
+    assert "Nine repairs have landed" in flat
 
     # The removed keys are recorded, and the lower-level APIs are not claimed gone.
     for key in ("log_level", "fault_profile", "fault_seed",
@@ -608,6 +609,24 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
     assert "The public-state and ignore-policy alignment has not started" not in flat
     assert "`temporary-output/`" in flat and "is now ignored alongside" in flat
     assert "no history was rewritten" in flat
+
+    # The email-namespace repair, checked against the production constants it
+    # promises it did not touch rather than against the plan's own prose.
+    from las.config.models import _RECIPIENT_PATTERN, ALLOWED_EMAIL_DOMAIN
+
+    assert ALLOWED_EMAIL_DOMAIN == "example.com"
+    assert _RECIPIENT_PATTERN.fullmatch("someone@example.com")
+    assert not _RECIPIENT_PATTERN.fullmatch("someone@sub.example.com")
+    assert "The email-namespace policy repair is complete" in flat
+    assert "The email-namespace policy repair has not started" not in flat
+    assert "other-domain" not in PLAN, "the plan still names the retired domain"
+    assert "reserved `example.com` namespace" in flat
+    assert "a reserved subdomain such as `sub.example.com` appears" in flat
+    assert "no real or third-party domain permitted anywhere" in flat
+    assert "configuration accepts exact `@example.com` only" in flat
+    assert "scans every tracked text file so the lapse cannot return" in flat
+    assert "Production validation was not touched" in flat
+    assert "does not stand in for item 1's full-history scan" in flat
 
     # The checklist ends in a release, not an ambiguous "publish".
     checklist_flat = " ".join(checklist.split())
@@ -895,9 +914,16 @@ def test_no_external_url_appears_in(document: str) -> None:
 
 @pytest.mark.parametrize("document", sorted(EVERY_CHANGED_FILE))
 def test_every_email_uses_the_reserved_domain_in(document: str) -> None:
+    """The reserved namespace, which is the exact domain or a subdomain of it.
+
+    Wider than the runtime recipient contract on purpose: documentation and the
+    negative tests it describes need to name an address the runtime refuses,
+    and a reserved subdomain does that without borrowing a real domain.
+    """
     for address in re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
                               EVERY_CHANGED_FILE[document]):
-        assert address.endswith("@example.com"), address
+        domain = address.rpartition("@")[2].lower()
+        assert domain == "example.com" or domain.endswith(".example.com"), address
 
 
 @pytest.mark.parametrize("document", sorted(EVERY_CHANGED_FILE))

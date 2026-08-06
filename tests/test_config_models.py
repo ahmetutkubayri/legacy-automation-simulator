@@ -240,8 +240,8 @@ def test_duplicate_report_formats_are_rejected(base_config: dict) -> None:
     assert_invalid(base_config, "duplicate formats")
 
 
-def test_non_synthetic_recipient_is_rejected(base_config: dict) -> None:
-    base_config["report"] = {"recipients": ["someone@other-domain.com"]}
+def test_example_subdomain_recipient_is_rejected(base_config: dict) -> None:
+    base_config["report"] = {"recipients": ["someone@sub.example.com"]}
     assert_invalid(base_config, "example.com")
 
 

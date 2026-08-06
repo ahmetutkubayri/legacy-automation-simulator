@@ -177,12 +177,13 @@ metadata review, verification that every documented command still
 behaves as written, a fresh-clone run on both operating systems, and
 only then a release tag.
 
-T16 is in progress. Eight repairs have landed: the sample configuration
+T16 is in progress. Nine repairs have landed: the sample configuration
 path-resolution fix, the audit and logging claim alignment, the
 ignored-configuration-surface cleanup, the source-distribution
 packaging policy, the single-version-source cleanup, the clock and
-determinism wording alignment, the release-plan alignment, and the
-public-state and ignore-policy alignment. The configuration cleanup
+determinism wording alignment, the release-plan alignment, the
+public-state and ignore-policy alignment, and the email-namespace
+policy repair. The configuration cleanup
 removed five keys the CLI accepted and then ignored — `log_level`, and
 the simulator's `fault_profile`, `fault_seed`, `busy_delay_min_ms` and
 `busy_delay_max_ms` — so the schema now rejects them as unknown keys
@@ -256,6 +257,20 @@ own commands write into — is now ignored alongside `output/` and
 `logs/`, so following the documented instructions cannot leave an
 untracked directory behind. No local-only file was read, moved or
 renamed, and no history was rewritten.
+
+The email-namespace policy repair is complete. One negative test named a
+third-party-looking synthetic domain to prove that a syntactically valid
+address off the accepted domain is refused. That was the only tracked
+address outside the reserved namespace, and it is now
+`someone@sub.example.com`: still an ordinary address, still refused by
+the runtime rule, but no longer borrowing a domain the project does not
+own. The test is renamed for what it now proves — that a reserved
+subdomain is not equivalent to the exact configured domain — and a new
+repository-policy test scans every tracked text file so the lapse cannot
+return. Production validation was not touched: `ALLOWED_EMAIL_DOMAIN`
+and the recipient pattern are unchanged, the validator still matches in
+full, exact `example.com` is still the only accepted configuration
+domain, and no artifact byte moved.
 
 The remaining README honesty work, the workflow and security hardening,
 the configuration-bound test coverage, an independent final
@@ -374,16 +389,33 @@ Approval-gated, per task:
 
 Standing rules: the project is fully self-contained (never read,
 reference, or copy anything outside this repository); all data is
-synthetic and regenerable from seeds; every email in content uses
-`example.com`; no real company, product, or person names; no absolute
-paths, network paths, or URLs (badges excepted) anywhere in code,
-docs, fixtures, or outputs; descriptive invented naming only.
+synthetic and regenerable from seeds; every tracked email address stays
+inside the reserved `example.com` namespace — ordinary addresses use the
+exact domain, and a reserved subdomain such as `sub.example.com` appears
+only where a negative test must prove the runtime exact-domain rule
+rejects it, with no real or third-party domain permitted anywhere; no
+real company, product, or person names; no absolute paths, network
+paths, or URLs (badges excepted) anywhere in code, docs, fixtures, or
+outputs; descriptive invented naming only.
+
+Those are two rules, not one, and the wider is the repository's:
+
+* **Repository confidentiality policy** — tracked test and document
+  content may use exact `example.com`, and a reserved subdomain of it
+  where a negative case needs an address the runtime refuses.
+* **Runtime recipient contract** — configuration accepts exact
+  `@example.com` only. `ALLOWED_EMAIL_DOMAIN` and the recipient pattern
+  match in full, so a subdomain is rejected like any other domain.
 
 ## First-release checklist (summary; execute fully in T16)
 
 1. Secret scan over the **entire git history** (e.g. gitleaks) — zero.
-2. Personal-data scan: every email `example.com`; commit authors are
-   the repo-local noreply identity only.
+2. Personal-data scan: every tracked email token inside the reserved
+   `example.com` namespace, enforced automatically over the tracked tree
+   by the repository-policy suite, with no personal or real-domain
+   address anywhere; commit authors are the repo-local noreply identity
+   only. The tracked-tree check does not stand in for item 1's
+   full-history scan, which has not been run yet.
 3. Generic pattern scan: no non-badge URLs, UNC paths, absolute user
    paths, or real-domain emails in any tracked file.
 4. Fixture regeneration from seed matches committed hashes in the

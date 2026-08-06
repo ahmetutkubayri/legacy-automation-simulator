@@ -157,6 +157,58 @@ def ignore_rules() -> list[str]:
     ]
 
 
+#: An address-shaped token. Deliberately loose: repository policy cares about
+#: anything a reader could mistake for a real contact, not about RFC syntax.
+_EMAIL_TOKEN = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+
+#: The reserved namespace tracked content may use.
+EXAMPLE_NAMESPACE = "example.com"
+
+#: Domains the scan must refuse. Written split, so this module's own committed
+#: blob carries no address-shaped token outside the reserved namespace and
+#: cannot fail the very scan it defines.
+REFUSED_DOMAINS = (
+    "example" + ".net",
+    "example" + ".org",
+    "host" + ".invalid",
+    "other-domain" + ".com",
+    "example.com" + ".elsewhere.test",
+    "not" + "example.com",
+)
+
+
+def in_example_namespace(domain: str) -> bool:
+    """Whether ``domain`` is the reserved domain itself or a subdomain of it."""
+    lowered = domain.lower().rstrip(".")
+    return lowered == EXAMPLE_NAMESPACE or lowered.endswith(f".{EXAMPLE_NAMESPACE}")
+
+
+def tracked_text_blobs() -> list[tuple[str, str]]:
+    """Every tracked path with its current tracked content, decoded as text.
+
+    Git decides the inventory — ``ls-files``, NUL-separated — so an ignored or
+    untracked scratch file can neither satisfy nor break the policy, and
+    nothing outside the repository is read. The bytes come from the tracked
+    tree as it stands rather than from ``HEAD``, because this is a gate run
+    *before* a commit: reading the committed blob would make the pass that
+    repairs a violation the one pass that cannot prove the repair.
+
+    Binary content is skipped deterministically — an embedded NUL or a decode
+    failure — so the XLSX fixture is never interpreted as text.
+    """
+    listing = git("ls-files", "-z").decode("utf-8")
+    blobs: list[tuple[str, str]] = []
+    for path in (entry for entry in listing.split("\0") if entry):
+        raw = (REPO_ROOT / path).read_bytes()
+        if b"\0" in raw:
+            continue
+        try:
+            blobs.append((path, raw.decode("utf-8")))
+        except UnicodeDecodeError:
+            continue
+    return blobs
+
+
 #: Wildcards wide enough to hide documentation a reader came for.
 BROAD_MARKDOWN_PATTERNS = frozenset({"*.md", "**/*.md", "*.local.md", "**/*.local.md"})
 
@@ -178,6 +230,40 @@ def names_one_local_markdown_file(rule: str) -> bool:
     if any(character in rule for character in _GLOB_METACHARACTERS):
         return False  # A pattern, judged by BROAD_MARKDOWN_PATTERNS instead.
     return rule.lower().endswith(".md")
+
+
+# --- the tracked email namespace ------------------------------------------------
+
+
+def test_every_email_in_tracked_text_uses_the_example_com_namespace() -> None:
+    """No tracked address may point outside the reserved documentation domain.
+
+    Two rules meet here, and the gap between them is deliberate. The *runtime*
+    contract in ``las.config`` accepts a report recipient on the exact reserved
+    domain and refuses everything else, subdomains included. This *repository*
+    rule is one step wider: tracked content may also use a reserved subdomain,
+    because a negative test has to name an address the runtime rule rejects,
+    and it must do that without borrowing a third-party domain to make the
+    point. Anything outside the reserved namespace is refused either way.
+
+    This covers the tracked tree only. A full-history scan is a separate
+    release gate and this test does not stand in for it.
+    """
+    offenders: list[str] = []
+    seen = 0
+    for path, text in tracked_text_blobs():
+        for token in _EMAIL_TOKEN.findall(text):
+            seen += 1
+            if not in_example_namespace(token.rpartition("@")[2]):
+                offenders.append(f"{path}: {token}")
+    assert seen, "the scan matched no address at all, so it proves nothing"
+    assert not offenders, "addresses outside the reserved namespace: " + ", ".join(offenders)
+
+    # The predicate itself, so a future loosening cannot slip through silently.
+    for allowed in ("ops-team@example.com", "someone@sub.example.com"):
+        assert in_example_namespace(allowed.rpartition("@")[2]), allowed
+    for refused in REFUSED_DOMAINS:
+        assert not in_example_namespace(refused), refused
 
 
 # --- the tracked ignore policy --------------------------------------------------
