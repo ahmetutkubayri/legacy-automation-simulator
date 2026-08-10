@@ -535,7 +535,8 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
     assert "release-plan alignment" in flat
     assert "public-state and ignore-policy alignment" in flat
     assert "email-namespace policy repair" in flat
-    assert "Nine repairs have landed" in flat
+    assert "workflow least-privilege hardening" in flat
+    assert "Ten repairs have landed" in flat
 
     # The removed keys are recorded, and the lower-level APIs are not claimed gone.
     for key in ("log_level", "fault_profile", "fault_seed",
@@ -628,14 +629,40 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
     assert "Production validation was not touched" in flat
     assert "does not stand in for item 1's full-history scan" in flat
 
+    # The workflow hardening, read out of the workflow itself rather than
+    # trusted from the plan's own description of it.
+    import yaml
+
+    ci = yaml.load(WORKFLOW, Loader=yaml.BaseLoader)
+    assert ci["permissions"] == {"contents": "read"}
+    assert all("permissions" not in job for job in ci["jobs"].values())
+    assert "The workflow least-privilege hardening is complete" in flat
+    assert "The workflow least-privilege hardening has not started" not in flat
+    assert "grants exactly `contents: read` at the workflow level" in flat
+    assert "no job carries a permission override" in flat
+    assert "every scope that is not named stays unavailable to the token" in flat
+    assert "`fetch-depth: 0` remains deliberately" in flat
+    assert "the commands and the step order are all byte-identical" in flat
+    assert "fails if the least-privilege declaration or the full-history checkout drifts" in flat
+    assert "says nothing about what third-party action code may do inside the runner" in flat
+
+    # Hardening is off the outstanding list; broader scanning is not.
+    outstanding = flat.split("The remaining README honesty work", 1)[1].split(".", 1)[0]
+    assert "workflow" not in outstanding, "workflow hardening is still listed as outstanding"
+    assert "the outstanding security scans" in outstanding
+    assert "the configuration-bound test coverage" in outstanding
+    assert "an independent final verification" in outstanding
+
     # The checklist ends in a release, not an ambiguous "publish".
     checklist_flat = " ".join(checklist.split())
     assert "create the first GitHub Release only after every item above passes" in checklist_flat
     assert "the maintainer has explicitly approved it" in checklist_flat
 
-    # What is still outstanding, and that nothing has shipped.
+    # What is still outstanding, and that nothing has shipped. Workflow
+    # hardening has left this list; the security scans it does not cover
+    # have taken its place.
     assert "The remaining README honesty work" in flat
-    assert "the workflow and security hardening" in flat
+    assert "the outstanding security scans" in flat
     assert "the configuration-bound test coverage" in flat
     assert "an independent final verification" in flat
     assert f"the `v{las.__version__}` tag and the first GitHub Release all remain" in flat

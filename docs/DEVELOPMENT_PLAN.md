@@ -177,19 +177,19 @@ metadata review, verification that every documented command still
 behaves as written, a fresh-clone run on both operating systems, and
 only then a release tag.
 
-T16 is in progress. Nine repairs have landed: the sample configuration
+T16 is in progress. Ten repairs have landed: the sample configuration
 path-resolution fix, the audit and logging claim alignment, the
 ignored-configuration-surface cleanup, the source-distribution
 packaging policy, the single-version-source cleanup, the clock and
 determinism wording alignment, the release-plan alignment, the
-public-state and ignore-policy alignment, and the email-namespace
-policy repair. The configuration cleanup
-removed five keys the CLI accepted and then ignored — `log_level`, and
-the simulator's `fault_profile`, `fault_seed`, `busy_delay_min_ms` and
-`busy_delay_max_ms` — so the schema now rejects them as unknown keys
-instead of silently discarding them. The simulator's fault model and the
-logging facility are untouched and still reached directly through
-`las.simulator` and `las.logging_setup`.
+public-state and ignore-policy alignment, the email-namespace policy
+repair, and the workflow least-privilege hardening. The configuration
+cleanup removed five keys the CLI accepted and then ignored —
+`log_level`, and the simulator's `fault_profile`, `fault_seed`,
+`busy_delay_min_ms` and `busy_delay_max_ms` — so the schema now rejects
+them as unknown keys instead of silently discarding them. The
+simulator's fault model and the logging facility are untouched and still
+reached directly through `las.simulator` and `las.logging_setup`.
 
 The packaging repair settles what a release archive carries. Setuptools'
 default had swept the test modules into the source distribution while
@@ -272,8 +272,30 @@ and the recipient pattern are unchanged, the validator still matches in
 full, exact `example.com` is still the only accepted configuration
 domain, and no artifact byte moved.
 
-The remaining README honesty work, the workflow and security hardening,
-the configuration-bound test coverage, an independent final
+The workflow least-privilege hardening is complete. The CI workflow
+declared no token scope at all, so it inherited whatever default the
+repository hands out. It now grants exactly `contents: read` at the
+workflow level, no job carries a permission override, and every scope
+that is not named stays unavailable to the token. `fetch-depth: 0`
+remains deliberately: the full-history release gates need the whole
+history, and a shallow clone would silently defeat them. Nothing else in
+the workflow moved — the triggers, the four-way matrix, the runners, the
+Python versions, the action references, the commands and the step order
+are all byte-identical, and a repository-policy test now parses the
+workflow and fails if the least-privilege declaration or the
+full-history checkout drifts. The scope of that claim is the token: an
+explicit grant limits what the workflow's credential can reach, and says
+nothing about what third-party action code may do inside the runner.
+
+Two kinds of work are easy to confuse here, so they are listed apart.
+Completed workflow hardening: the explicit least-privilege token
+declaration, and the automated policy check that keeps it. Still
+outstanding on the security and release side: the full-history secret
+scan, the confidentiality scans not yet run, a fresh independent final
+verification, and the remaining release gates.
+
+The remaining README honesty work, the configuration-bound test
+coverage, the outstanding security scans, an independent final
 verification, the `v0.1.0` tag and the first GitHub Release all remain.
 T16 is therefore not finished: the repository is publicly visible, but
 the repository has not been tagged or released.

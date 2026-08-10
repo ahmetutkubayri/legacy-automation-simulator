@@ -29,10 +29,12 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SAMPLES_PREFIX = "data/samples"
 XLSX_FIXTURE = f"{SAMPLES_PREFIX}/feed_alpha.xlsx"
+WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 
 #: The CSV fixtures whose hashes the plan documents, as a floor. The tests
 #: enforce the policy over whatever CSVs are actually committed, so a future
@@ -230,6 +232,67 @@ def names_one_local_markdown_file(rule: str) -> bool:
     if any(character in rule for character in _GLOB_METACHARACTERS):
         return False  # A pattern, judged by BROAD_MARKDOWN_PATTERNS instead.
     return rule.lower().endswith(".md")
+
+
+# --- the CI workflow's token policy ---------------------------------------------
+
+
+def workflow_document() -> dict:
+    """The CI workflow, parsed with keys left as written.
+
+    ``BaseLoader`` on purpose: YAML 1.1 resolves a bare ``on`` key to the
+    boolean ``True``, so a resolving loader would hide the trigger block behind
+    a key no reader ever typed. Every scalar therefore arrives as a string,
+    which is why depths and levels are compared against ``"0"`` and ``"read"``.
+    """
+    document = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    assert isinstance(document, dict), "the workflow did not parse as a mapping"
+    return document
+
+
+def test_ci_workflow_uses_read_only_repository_permissions() -> None:
+    """CI reads the repository and writes nothing, so its token should too.
+
+    An explicit grant is what makes the rest of the token's scopes unavailable:
+    without one, the default set applies. The claim is about the *token*, not
+    about what code inside the runner can do — an action that reaches the
+    network is unaffected by any of this.
+
+    Checkout depth is asserted alongside, because the full-history release
+    gates need it and a well-meaning "shallow clone is faster" edit would be
+    invisible until one of those gates ran.
+    """
+    workflow = workflow_document()
+
+    assert "permissions" in workflow, "the workflow declares no explicit token scope"
+    assert workflow["permissions"] == {"contents": "read"}
+
+    jobs = workflow["jobs"]
+    assert jobs, "the workflow declares no jobs"
+    for name, job in jobs.items():
+        assert "permissions" not in job, f"job {name!r} overrides the workflow-level policy"
+
+    # Nothing writable, and no shorthand that would grant every scope at once.
+    declared = [workflow["permissions"]]
+    declared += [job["permissions"] for job in jobs.values() if "permissions" in job]
+    for block in declared:
+        assert block not in ("read-all", "write-all"), f"shorthand {block!r} grants too much"
+        assert isinstance(block, dict), f"unexpected permissions shape: {block!r}"
+        for scope, level in block.items():
+            assert level != "write", f"{scope} is granted write access"
+
+    # Located by what the step uses, not by its position in the list.
+    checkouts = [
+        step
+        for job in jobs.values()
+        for step in job.get("steps", [])
+        if str(step.get("uses", "")).startswith("actions/checkout")
+    ]
+    assert checkouts, "no checkout step found, so the depth assertion would prove nothing"
+    for step in checkouts:
+        assert step.get("with", {}).get("fetch-depth") == "0", (
+            "checkout no longer fetches full history, which the release gates need"
+        )
 
 
 # --- the tracked email namespace ------------------------------------------------
