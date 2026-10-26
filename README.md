@@ -54,9 +54,9 @@ exists to satisfy it.
 - **Atomic publication.** The report set is staged in a private sibling
   directory, verified, and renamed into place in one operation. Either all
   three artifacts appear together, or the output directory does not exist.
-- **Typed, stable failures.** Every failure carries a stable error code and a
-  message safe to print. No path, row value or raw exception reaches the
-  terminal.
+- **Typed, stable failures.** Handled execution failures carry a stable error
+  code and a message safe to print. Their terminal output exposes no path,
+  row value or raw exception.
 - **Bounded retries, no uncontrolled sleeps.** The driver retries a fixed
   number of times against an injected clock. Tests advance time instantly;
   nothing sleeps.
@@ -192,9 +192,13 @@ Exit codes:
 | `5` | typed pipeline or lower-layer failure |
 | `6` | unexpected internal failure |
 
-On failure, stdout is empty and stderr carries exactly one stable line of the
-form `las: <error_code>`. No traceback, no raw exception text, no path and no
-object representation is ever printed.
+For execution failures handled by the CLI, stdout is empty and stderr carries
+exactly one stable line of the form `las: <error_code>`. No traceback, raw
+exception text, path or object representation is printed for those failures.
+Argument parsing uses argparse's standard diagnostics. Ctrl-C raises
+`KeyboardInterrupt`, which the CLI does not catch; Python and the platform
+determine its diagnostics and exit status. The stable error-line guarantee
+does not cover interrupts.
 
 ## Testing and reliability
 
@@ -240,8 +244,8 @@ explicit — an acceptable trade for results that cannot drift.
 **Typed failures instead of leaking lower-level exceptions.** Each layer
 converts what it catches into its own error type with a stable code. Debugging
 loses the original traceback at the boundary, which is why an enabled audit
-trail records the stage; the gain is a CLI that cannot print a path or a row
-value.
+trail records the stage; the gain is safe terminal output for handled execution
+failures, without paths or row values.
 
 **Report-only orchestration.** The driver's status write-back is implemented and
 tested, but deliberately not wired in. Nothing in this project states which
