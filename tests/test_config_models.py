@@ -102,6 +102,52 @@ def test_streaming_row_threshold_out_of_range_is_rejected(base_config: dict) -> 
     assert_invalid(base_config, "report.streaming_row_threshold")
 
 
+@pytest.mark.parametrize(
+    ("section", "field", "value"),
+    [
+        ("simulator", "visible_rows", 501),
+        ("simulator", "buffer_rows", -1),
+        ("simulator", "buffer_rows", 51),
+        ("match", "fuzzy_threshold", 0.0),
+        ("match", "fuzzy_threshold", -0.01),
+        ("match", "review_threshold", -0.01),
+        ("match", "review_threshold", 1.01),
+        ("report", "streaming_row_threshold", 1_048_576),
+    ],
+)
+def test_config_field_bounds_reject_outside_values(
+    base_config: dict, section: str, field: str, value: int | float
+) -> None:
+    # Keep the other threshold valid so each case tests its own field bound.
+    base_config["match"] = {"fuzzy_threshold": 1.0, "review_threshold": 0.0}
+    base_config.setdefault(section, {})[field] = value
+    assert_invalid(base_config, f"{section}.{field}")
+
+
+@pytest.mark.parametrize(
+    ("section", "field", "value"),
+    [
+        ("simulator", "visible_rows", 1),
+        ("simulator", "visible_rows", 500),
+        ("simulator", "buffer_rows", 0),
+        ("simulator", "buffer_rows", 50),
+        ("match", "fuzzy_threshold", 0.01),
+        ("match", "fuzzy_threshold", 1.0),
+        ("match", "review_threshold", 0.0),
+        ("match", "review_threshold", 1.0),
+        ("report", "streaming_row_threshold", 1_000),
+        ("report", "streaming_row_threshold", 1_048_575),
+    ],
+)
+def test_config_field_bounds_accept_valid_edges(
+    base_config: dict, section: str, field: str, value: int | float
+) -> None:
+    base_config["match"] = {"fuzzy_threshold": 1.0, "review_threshold": 0.0}
+    base_config.setdefault(section, {})[field] = value
+    config = RunConfig.model_validate(base_config)
+    assert getattr(getattr(config, section), field) == value
+
+
 # --- unknown keys -----------------------------------------------------------
 
 
