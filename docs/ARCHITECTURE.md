@@ -241,8 +241,9 @@ Exact container fields and property values are in
   on it.
 - **Safe messages.** Error context is an allowlist of scalars. No path, cell
   value, account name or raw exception text is carried.
-- **No traceback exposure.** A failing command prints one line to stderr and
-  nothing to stdout.
+- **No traceback exposure for handled execution failures.** These failures
+  print one line to stderr and nothing to stdout. Argument parsing uses
+  argparse diagnostics; interrupts follow Python and platform behaviour.
 - **Cleanup on every failure path.** The staging directory is removed whether
   the failure happened during writing, verification, or the final rename.
 - **No partial output.** Because publication is a rename, a failed run leaves no

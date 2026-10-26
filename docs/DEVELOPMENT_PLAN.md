@@ -8,7 +8,7 @@ with a simulated legacy system — using entirely synthetic data.
 This document is the public-safe continuation guide: everything needed
 to keep developing the project on any machine.
 
-Package: `las` · CLI: `las` · Python: 3.12 · License: MIT
+Package: `las` · CLI: `las` · Python: >=3.11 (CI: 3.11/3.12) · License: MIT
 
 ---
 
@@ -25,12 +25,12 @@ reproducible and fully tested.
 ## Architecture
 
 Ports-and-adapters. The simulator is the "legacy system"; the driver is
-the resilient client; pipeline stages (upcoming) consume both through
-narrow interfaces.
+the resilient client; the pipeline composes the layers through their
+public interfaces.
 
 ```
 src/las/
-├── cli.py                  # entry point (subcommands land in T14)
+├── cli.py                  # run, demo, generate-fixtures entry point
 ├── config/    models.py, loader.py        # pydantic models, YAML loading
 ├── audit/     trail.py                    # append-only JSONL audit trail
 ├── logging_setup.py                       # console + per-run file logging

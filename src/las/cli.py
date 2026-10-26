@@ -8,10 +8,12 @@ decides are how a result is printed and which exit code it earns.
 
 Output discipline
 -----------------
-Success writes a fixed summary to stdout and nothing to stderr. Failure writes
-one line to stderr — ``las: <error_code>`` — and nothing to stdout: no
-traceback, no exception text, no path, no object representation. The full
-contract, including the exit-code map, is in ``docs/PIPELINE_CONTRACT.md``.
+Success writes a fixed summary to stdout and nothing to stderr. Handled
+execution failures write one line to stderr — ``las: <error_code>`` — and
+nothing to stdout: no traceback, no exception text, no path, no object
+representation. Argument parsing uses argparse diagnostics; uncaught
+``KeyboardInterrupt`` follows Python and platform behaviour. The full contract,
+including the exit-code map, is in ``docs/PIPELINE_CONTRACT.md``.
 """
 
 from __future__ import annotations

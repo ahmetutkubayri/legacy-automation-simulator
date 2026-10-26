@@ -254,10 +254,16 @@ construction, the ledger adapter, stage contract failures and `VERIFY`.
 
 Success: the terminal summary on stdout, stderr empty, exit `0`.
 
+The failure guarantees below apply to errors handled during command execution.
+
 Failure: stdout empty, one line on stderr — `las: <error_code>` — with one
 final LF newline, no traceback, no raw exception text, no path and no object
 representation. An unexpected failure prints `las: internal_error` and exits
 `6`. There is no debug or traceback flag in T14.
+
+Argument parsing uses argparse's standard usage diagnostics. Ctrl-C raises
+`KeyboardInterrupt`, which is not caught or converted to a pipeline error;
+Python and the platform determine its diagnostics and exit status.
 
 ## Terminal summary
 
