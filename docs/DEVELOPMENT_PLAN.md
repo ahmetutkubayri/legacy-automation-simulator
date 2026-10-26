@@ -162,22 +162,21 @@ only uncovered lines are defensive branches unreachable by
 construction. Exact counts are deliberately not written here — they
 change with every task, and the suite itself is the authority.
 
-## Current task: T16 — public-release sweep and release readiness
+## T16 — public-release sweep and release readiness
 
-T16 is the only remaining task. It adds no feature: it audits what is
-already here, repairs what the audit finds, and decides whether the
-project is ready for its first tagged release. The repository is already
-publicly visible, which is a visibility state and not a release: no
-release tag exists locally or on the remote, and the first GitHub Release
-remains pending, so being readable in public settles nothing about
-whether T16 or the release is finished. Its checklist is at the
+T16 adds no feature: it audits what is already here, repairs what the
+audit finds, and decides whether the project is ready for its first
+tagged release. The repository is already publicly visible, which is a
+visibility state and not a release. Git tags and GitHub Releases record
+publication status; this document records the readiness work and the
+publication gates. Its checklist is at the
 end of this document — a full-history secret scan, generic pattern scans
 over every tracked file, fixture regeneration against the pinned hashes,
 metadata review, verification that every documented command still
 behaves as written, a fresh-clone run on both operating systems, and
 only then a release tag.
 
-T16 is in progress. Ten repairs have landed: the sample configuration
+Initial T16 work landed ten repairs: the sample configuration
 path-resolution fix, the audit and logging claim alignment, the
 ignored-configuration-surface cleanup, the source-distribution
 packaging policy, the single-version-source cleanup, the clock and
@@ -239,24 +238,24 @@ unchanged, the classifier is unchanged, and the rule recorded here is that
 the first Git tag must match the package version: a 1.0 tag would read as
 a stable public compatibility commitment, and this project makes no such
 promise about its API today. The approved first tag is therefore `v0.1.0`.
-This pass records that decision and nothing more — no tag exists, no
-release was created, no changelog was added, and there is still no
-package-index publication configuration. Creating the tag stays blocked on
-the mandatory T16 repairs, a fresh independent final verification, a
-four-way CI confirmation and explicit maintainer approval.
+That repair recorded the decision without creating a tag, release or
+changelog. There is no package-index publication configuration. Tag
+creation requires the recorded T16 checks, a fresh independent final
+verification, four-way CI confirmation on the release candidate and
+explicit maintainer approval.
 
 The public-state and ignore-policy alignment is complete. The repository
 is now publicly visible, so this document no longer frames T16 as
 deciding whether to publish the repository at all; it frames it as
 deciding whether the project is ready for its first tagged release.
-Those are different states, and only the first has happened. The tracked
-ignore policy was cleaned up in the same pass: the ad-hoc section that
-ignored one editor tool's local working file is gone from the public
-tree, and `temporary-output/` — the spot-check directory this document's
-own commands write into — is now ignored alongside `output/` and
-`logs/`, so following the documented instructions cannot leave an
-untracked directory behind. No local-only file was read, moved or
-renamed, and no history was rewritten.
+Those are different states; Git tags and GitHub Releases record the
+publication state. The tracked ignore policy was cleaned up in the same
+pass: the ad-hoc section that ignored one editor tool's local working
+file is gone from the public tree, and `temporary-output/` — the
+spot-check directory this document's own commands write into — is now
+ignored alongside `output/` and `logs/`, so following the documented
+instructions cannot leave an untracked directory behind. No local-only
+file was read, moved or renamed, and no history was rewritten.
 
 The email-namespace policy repair is complete. One negative test named a
 third-party-looking synthetic domain to prove that a syntactically valid
@@ -287,18 +286,52 @@ full-history checkout drifts. The scope of that claim is the token: an
 explicit grant limits what the workflow's credential can reach, and says
 nothing about what third-party action code may do inside the runner.
 
-Two kinds of work are easy to confuse here, so they are listed apart.
-Completed workflow hardening: the explicit least-privilege token
-declaration, and the automated policy check that keeps it. Still
-outstanding on the security and release side: the full-history secret
-scan, the confidentiality scans not yet run, a fresh independent final
-verification, and the remaining release gates.
+The README honesty work is complete. The failure-output guarantee now
+covers handled execution failures; argparse diagnostics and uncaught
+`KeyboardInterrupt` follow their own Python and platform behaviour. The
+architecture document, pipeline contract and CLI docstring agree. Stale
+Python and future-pipeline wording has also been corrected, without
+changing executable behaviour.
 
-The remaining README honesty work, the configuration-bound test
-coverage, the outstanding security scans, an independent final
-verification, the `v0.1.0` tag and the first GitHub Release all remain.
-T16 is therefore not finished: the repository is publicly visible, but
-the repository has not been tagged or released.
+The configuration-bound test coverage is complete for the identified
+gaps: simulator window and buffer sizes, matching thresholds and the
+report streaming threshold. Rejection cases and accepted edges exercise
+the existing guards; no production configuration constraint changed.
+
+The release-readiness audit record, dated 2026-10-26, covers:
+
+- **History and confidentiality.** Gitleaks default-rule scans of the
+  entire reachable Git history and the current tracked tree reported no
+  findings. Generic URL, domain, UNC and absolute-path patterns were
+  reviewed in text, Python literals and folded constant strings. Expected
+  synthetic rejection fixtures, policy needles and syntax matches were
+  distinguished from data; no unexpected confidentiality finding remained.
+  No private denylist was used. Historical commit author and committer
+  identities match the approved personal noreply identity.
+- **Fixtures and metadata.** Two independent seed-controlled generations
+  matched each other, the committed fixtures and the pinned hashes.
+  Workbook metadata is neutral, document and ZIP timestamps are fixed,
+  and the fixture workbook has no external relationship.
+- **Dependencies and licensing.** The declared runtime, development and
+  build dependencies, including versions resolved by clean installations,
+  were checked against public PyPI metadata. Their license declarations
+  are MIT, BSD, Apache-2.0 or PSF-2.0. Clean installs used public PyPI only,
+  without a private index or direct-URL dependency.
+- **Archives and clean installs.** Wheel and sdist membership matches the
+  packaging policy. Editable, wheel and sdist installs passed on Python
+  3.11 and 3.12 in isolated environments outside the working repository.
+  Fresh-clone lint and full-suite runs passed on both interpreters; the
+  README demo, fixture and configured-run commands passed in every install
+  mode. Report bytes agreed across all six combinations, without pandas
+  or numpy installed. CI also passed on Ubuntu and Windows with both
+  supported interpreters.
+
+The final publication gates are a fresh independent final verification,
+four-way CI on the release candidate and explicit maintainer approval,
+then the `v0.1.0` tag and the first GitHub Release. Completing a local
+check does not create either publication object. Git refs and GitHub
+Releases are the authority for whether publication has occurred; this
+record does not hard-code their live absence or presence.
 
 ## Task clauses
 
@@ -437,7 +470,7 @@ Those are two rules, not one, and the wider is the repository's:
    by the repository-policy suite, with no personal or real-domain
    address anywhere; commit authors are the repo-local noreply identity
    only. The tracked-tree check does not stand in for item 1's
-   full-history scan, which has not been run yet.
+   full-history scan.
 3. Generic pattern scan: no non-badge URLs, UNC paths, absolute user
    paths, or real-domain emails in any tracked file.
 4. Fixture regeneration from seed matches committed hashes in the

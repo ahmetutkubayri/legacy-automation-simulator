@@ -503,8 +503,8 @@ def test_the_completed_ledger_records(task: str) -> None:
     assert re.search(rf"^\| {task} \|", ledger, re.M), f"{task} missing from the ledger"
 
 
-def test_the_current_task_is_the_final_audit() -> None:
-    assert re.search(r"^## Current task: T16\b", PLAN, re.M)
+def test_the_plan_retains_the_final_release_audit_record() -> None:
+    assert re.search(r"^## T16 — public-release sweep", PLAN, re.M)
     assert not re.search(r"^## (Current|Next) task: T8\b", PLAN, re.M)
 
 
@@ -514,14 +514,9 @@ def test_the_plan_carries_no_stale_status_claim() -> None:
         assert stale not in PLAN, f"stale claim remains: {stale}"
 
 
-def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
-    """The plan must track T16's real state, neither frozen nor overstated.
-
-    Written as one test because the claims are one fact: which passes have
-    landed, which have not, and that nothing has been released yet.
-    """
+def test_the_plan_records_t16_evidence_and_preserves_publication_gates() -> None:
+    """Completed technical work and publication requirements stay distinct."""
     flat = " ".join(PLAN.split())
-    assert "T16 is in progress" in flat
     assert "Nothing in T16 has started" not in flat
 
     # The landed repairs, named.
@@ -536,7 +531,7 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
     assert "public-state and ignore-policy alignment" in flat
     assert "email-namespace policy repair" in flat
     assert "workflow least-privilege hardening" in flat
-    assert "Ten repairs have landed" in flat
+    assert "Initial T16 work landed ten repairs" in flat
 
     # The removed keys are recorded, and the lower-level APIs are not claimed gone.
     for key in ("log_level", "fault_profile", "fault_seed",
@@ -579,8 +574,8 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
     assert "Both instructions now read `v0.1.0`" in flat
     assert "the first Git tag must match the package version" in flat
     assert f"The approved first tag is therefore `v{las.__version__}`" in flat
-    assert "no tag exists, no release was created, no changelog was added" in flat
-    assert "Creating the tag stays blocked on" in flat
+    assert "without creating a tag, release or changelog" in flat
+    assert "Tag creation requires the recorded T16 checks" in flat
 
     # The corrected instruction reaches both places that carried the old one,
     # and no section still asks for the tag the metadata cannot support.
@@ -590,18 +585,17 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
     assert "Tag `v0.1.0`, matching the package version" in " ".join(checklist.split())
     assert "v1.0.0" not in PLAN, "a v1.0.0 release instruction survives"
 
-    # Public visibility and a tagged release are different states, and the plan
-    # must say which one has happened. T16 is framed as the release sweep it now
-    # is, not as a decision about whether to make the repository readable.
-    t16_flat = " ".join(PLAN.split("## Current task: T16", 1)[1].split("\n## ", 1)[0].split())
-    assert re.search(r"^## Current task: T16 — public-release sweep", PLAN, re.M)
+    # Public visibility and release publication are distinct. Live publication
+    # state belongs to Git refs and GitHub Releases, not a stale prose snapshot.
+    t16_flat = " ".join(PLAN.split("## T16 —", 1)[1].split("\n## ", 1)[0].split())
+    assert re.search(r"^## T16 — public-release sweep", PLAN, re.M)
     assert "The repository is already publicly visible" in t16_flat
     assert "a visibility state and not a release" in t16_flat
-    # Only what was actually checked: tags are enumerable locally and on the
-    # remote, so their absence is a fact. Whether some release object exists
-    # elsewhere was never queried, so the plan states pending work instead.
-    assert "no release tag exists locally or on the remote" in t16_flat
-    assert "the first GitHub Release remains pending" in t16_flat
+    assert "Git tags and GitHub Releases record publication status" in t16_flat
+    assert "does not hard-code their live absence or presence" in t16_flat
+    assert "no release tag exists locally or on the remote" not in t16_flat
+    assert "the first GitHub Release remains pending" not in t16_flat
+    assert "only the first has happened" not in t16_flat
     assert "no GitHub Release exists" not in flat, "an unverified release claim survives"
     assert "fit to publish" not in t16_flat, "the old publish-decision framing survives"
     assert "Pre-publication" not in PLAN, "a stale pre-publication label survives"
@@ -646,28 +640,26 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
     assert "fails if the least-privilege declaration or the full-history checkout drifts" in flat
     assert "says nothing about what third-party action code may do inside the runner" in flat
 
-    # Hardening is off the outstanding list; broader scanning is not.
-    outstanding = flat.split("The remaining README honesty work", 1)[1].split(".", 1)[0]
-    assert "workflow" not in outstanding, "workflow hardening is still listed as outstanding"
-    assert "the outstanding security scans" in outstanding
-    assert "the configuration-bound test coverage" in outstanding
-    assert "an independent final verification" in outstanding
+    # The audit record names completed work without relaxing the final gates.
+    assert "The README honesty work is complete" in t16_flat
+    assert "The configuration-bound test coverage is complete" in t16_flat
+    assert "entire reachable Git history" in t16_flat
+    assert "No private denylist was used" in t16_flat
+    assert "all six combinations" in t16_flat
+    assert "no production configuration constraint changed" in t16_flat
 
     # The checklist ends in a release, not an ambiguous "publish".
     checklist_flat = " ".join(checklist.split())
     assert "create the first GitHub Release only after every item above passes" in checklist_flat
     assert "the maintainer has explicitly approved it" in checklist_flat
 
-    # What is still outstanding, and that nothing has shipped. Workflow
-    # hardening has left this list; the security scans it does not cover
-    # have taken its place.
-    assert "The remaining README honesty work" in flat
-    assert "the outstanding security scans" in flat
-    assert "the configuration-bound test coverage" in flat
-    assert "an independent final verification" in flat
-    assert f"the `v{las.__version__}` tag and the first GitHub Release all remain" in flat
-    assert "the repository is publicly visible" in flat
-    assert "the repository has not been tagged or released" in flat
+    publication = t16_flat.split("The final publication gates are", 1)[1]
+    assert "a fresh independent final verification" in publication
+    assert "four-way CI on the release candidate" in publication
+    assert "explicit maintainer approval" in publication
+    assert f"then the `v{las.__version__}` tag and the first GitHub Release" in publication
+    assert "Completing a local check does not create either publication object" in publication
+    assert "the repository has not been tagged or released" not in flat
     for overstated in ("T16 is complete", "T16 is finished", "ready to publish",
                        "release readiness has been achieved"):
         assert overstated not in flat, f"the plan overstates progress: {overstated}"
@@ -675,7 +667,7 @@ def test_the_plan_states_t16_is_in_progress_but_unfinished() -> None:
     # The status section carries no hash of its own and no placeholder: the
     # ledger above is the only place a commit hash belongs, and this pass is
     # not committed yet. Bounded to the T16 section so the ledger is untouched.
-    status = PLAN.split("## Current task: T16", 1)[1].split("\n## ", 1)[0]
+    status = PLAN.split("## T16 —", 1)[1].split("\n## ", 1)[0]
     assert not re.search(r"\b[0-9a-f]{40}\b", status), "the status section pins a commit"
     for placeholder in ("TBD", "TODO", "FIXME", "XXX", "<commit", "PLACEHOLDER"):
         assert placeholder not in status, f"the status section carries {placeholder}"
@@ -735,14 +727,14 @@ def test_the_plan_no_longer_requires_screenshots() -> None:
 
 
 def test_every_commit_hash_in_the_ledger_is_forty_hex_characters() -> None:
-    ledger = PLAN.split("## Completed tasks", 1)[1].split("## Current task", 1)[0]
+    ledger = PLAN.split("## Completed tasks", 1)[1].split("## ", 1)[0]
     for digest in re.findall(r"`([0-9a-f]{7,})`", ledger):
         assert len(digest) == 40, f"{digest} is not a full commit hash"
 
 
 def ledger_rows() -> dict[str, str]:
     """Task identifier to the contents of its commit cell."""
-    ledger = PLAN.split("## Completed tasks", 1)[1].split("## Current task", 1)[0]
+    ledger = PLAN.split("## Completed tasks", 1)[1].split("## ", 1)[0]
     return {
         task: cell.strip()
         for task, cell in re.findall(r"^\| (T\d+) \|([^|]*)\|", ledger, re.M)
