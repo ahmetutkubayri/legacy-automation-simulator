@@ -271,10 +271,15 @@ def run_pipeline(
             raise StageContractError(
                 "the master data could not be indexed", stage=stage.value
             ) from None
-        ingested = [
-            _read(request.resolve(feed.path), feed_schema(feed), stage=stage)
-            for feed in config.feeds
-        ]
+        try:
+            ingested = [
+                _read(request.resolve(feed.path), feed_schema(feed), stage=stage)
+                for feed in config.feeds
+            ]
+        except IngestError:
+            raise ConfiguredInputError(
+                "a configured feed schema is invalid", stage=stage.value
+            ) from None
         feed_rows = sum(item.row_count for item in ingested)
         completed.append(StageState(Stage.INGEST))
         recorder.emit(EVENT_STAGE_COMPLETED,

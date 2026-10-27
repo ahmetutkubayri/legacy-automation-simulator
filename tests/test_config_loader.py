@@ -47,6 +47,14 @@ def test_empty_file_raises_config_error(tmp_path: Path) -> None:
         load_config(path)
 
 
+@pytest.mark.parametrize("content", [b"\xff", "seed: 1\n".encode("utf-16")])
+def test_non_utf8_config_is_a_config_error(tmp_path: Path, content: bytes) -> None:
+    path = tmp_path / "config.yaml"
+    path.write_bytes(content)
+    with pytest.raises(ConfigError, match="could not be read"):
+        load_config(path)
+
+
 def test_non_mapping_top_level_raises_config_error(tmp_path: Path) -> None:
     path = write_config(tmp_path, "- just\n- a\n- list\n")
     with pytest.raises(ConfigError, match="mapping") as excinfo:

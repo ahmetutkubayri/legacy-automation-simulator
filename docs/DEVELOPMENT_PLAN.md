@@ -306,6 +306,12 @@ pipeline error classification and failure auditing. A negative demo seed is
 a configuration error, and the simulator immutability check runs inside
 VERIFY before publication. Regression cases cover these failure paths.
 
+Further review closed two configuration-error gaps: non-UTF-8 config text
+and invalid normalized feed aliases now exit with code 3; alias-schema
+failures also record the pipeline failure event for library audit callers.
+The existing half-up conversion of matching thresholds to whole basis points
+is documented explicitly, including extra-precision and near-zero values.
+
 The release-readiness audit record, dated 2026-10-26, covers:
 
 - **History and confidentiality.** Gitleaks default-rule scans of the

@@ -379,6 +379,29 @@ def test_validation_and_matching_preserve_existing_pipeline_errors(
     assert nothing_left(tmp_path, root / "report")
 
 
+@pytest.mark.parametrize(
+    "aliases",
+    [{"Amount": "unit"}, {"---": "amount"}, {"Quantity": "amount", "quantity": "unit"}],
+)
+def test_invalid_alias_schema_is_audited_as_configured_input(
+    tmp_path: Path, monkeypatch, aliases: dict
+) -> None:
+    root = tmp_path / "project"
+    request = make_request(root)
+    request.config.feeds[0].header_aliases = aliases
+    monkeypatch.chdir(tmp_path)
+    audit_root = tmp_path / "operational"
+    with AuditTrail(output_root="operational") as trail, pytest.raises(ConfiguredInputError):
+        run_pipeline(request, trail=trail)
+    events = [e for e in read_events(audit_root) if e["stage"] == "pipeline"]
+    failures = [e for e in events if e["event"] == EVENT_FAILED]
+    assert len(failures) == 1
+    assert failures[0]["payload"] == {"stage": Stage.INGEST.value,
+                                      "error_code": "configured_input_error"}
+    assert not any(e["event"] in {EVENT_COMPLETED, EVENT_ARTIFACTS_COMMITTED} for e in events)
+    assert nothing_left(tmp_path, root / "report")
+
+
 def test_no_audit_payload_carries_a_path_or_name(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

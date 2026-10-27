@@ -2,15 +2,15 @@
 
 Where the thresholds come from
 ------------------------------
-:class:`las.config.MatchConfig` defines them, and its own docstring fixes the
-semantics precisely:
+:class:`las.config.MatchConfig` defines fractional thresholds. Both are
+converted once through ``Decimal(str(value))``, scaled by ``10000`` and
+rounded half up to whole basis points. The effective integer cutoffs define
+accept, review and below-review bands; no score below the effective accept
+cutoff is silently matched. Extra decimal places can round up or down, and
+a tiny positive fraction such as ``0.00004`` becomes zero basis points.
 
-    Scores at or above ``fuzzy_threshold`` are accepted automatically; scores
-    in ``[review_threshold, fuzzy_threshold)`` are routed to the needs-review
-    bucket; anything below is unmatched.
-
-So the repository specifies **two bands, not a margin**. Both configured values
-are converted once, exactly, to basis points on the scoring scale.
+So the repository specifies **two bands, not a margin**. Quantization is part
+of the configured-threshold conversion, not a later adjustment to a decision.
 
 What the repository does *not* define
 -------------------------------------
@@ -68,10 +68,11 @@ DEFAULT_SOURCE_NAME_KEYS: tuple[str, ...] = ("reported by", "src name")
 
 
 def to_basis_points(fraction: float, name: str) -> int:
-    """Convert a configured 0–1 fraction to exact basis points.
+    """Convert a configured 0–1 fraction to whole basis points, rounding half up.
 
     Routed through ``Decimal(str(...))`` so the configured ``0.87`` becomes
     ``8700`` rather than whatever the nearest binary double rounds to.
+    Values beyond four decimal places are quantized, not retained exactly.
     """
     try:
         scaled = (Decimal(str(fraction)) * SCORE_MAX_BP).to_integral_value(ROUND_HALF_UP)

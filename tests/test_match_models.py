@@ -284,6 +284,23 @@ def test_threshold_conversion_rejects_values_outside_zero_to_one() -> None:
             to_basis_points(bad, "probe")
 
 
+@pytest.mark.parametrize(
+    ("fraction", "expected"),
+    [(0.86994, 8699), (0.87005, 8701), (0.00004, 0), (0.00005, 1)],
+)
+def test_threshold_precision_rounds_half_up_to_whole_basis_points(
+    fraction: float, expected: int
+) -> None:
+    from las.config import MatchConfig
+    from las.match import policy_from_config
+
+    policy = policy_from_config(MatchConfig(fuzzy_threshold=fraction, review_threshold=0))
+    assert policy.accept_bp == expected
+    assert policy.band_of(expected) == "accept"
+    if expected:
+        assert policy.band_of(expected - 1) == "review"
+
+
 def test_threshold_conversion_rejects_unusable_input() -> None:
     from las.match import to_basis_points
 

@@ -37,7 +37,7 @@ def load_config(path: str | Path) -> RunConfig:
 
     try:
         raw_text = config_path.read_text(encoding="utf-8")
-    except OSError as exc:
+    except (OSError, UnicodeError) as exc:
         raise ConfigError(f"Configuration file could not be read: {config_path} ({exc})") from exc
 
     try:

@@ -195,6 +195,11 @@ written until the gate has passed. Only then does the atomic writer stage the
 artifacts, verify them, and rename the directory into place. A run that fails
 anywhere leaves the filesystem as it found it.
 
+Matching compares integer basis-point scores. Configured fractional thresholds
+are scaled by 10000 through `Decimal(str(value))` and rounded half up once to
+whole basis points. Decisions use these effective cutoffs: extra precision can
+round up or down, and a tiny positive threshold such as `0.00004` becomes zero.
+
 Stage duties are specified in [PIPELINE_CONTRACT.md](PIPELINE_CONTRACT.md).
 
 ## Determinism as a design constraint

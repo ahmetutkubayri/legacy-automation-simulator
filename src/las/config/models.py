@@ -145,10 +145,13 @@ class ValidationConfig(StrictModel):
 class MatchConfig(StrictModel):
     """Thresholds steering exact/fuzzy entity matching.
 
-    Scores at or above ``fuzzy_threshold`` are accepted automatically;
-    scores in ``[review_threshold, fuzzy_threshold)`` are routed to the
-    needs-review bucket; anything below is unmatched. Nothing is ever
-    silently matched below ``fuzzy_threshold``.
+    Fractions are converted through ``Decimal(str(value))`` and rounded
+    half up to whole basis points (one point is ``0.0001``). Comparisons use
+    those effective integer cutoffs: at or above the fuzzy cutoff is
+    accepted, between the review and fuzzy cutoffs needs review, and below
+    the review cutoff is unmatched. Nothing is silently matched below the
+    effective fuzzy cutoff. Extra decimal places can round either way:
+    ``0.86994`` becomes ``8699`` basis points and ``0.00004`` becomes ``0``.
     """
 
     fuzzy_threshold: float = Field(default=0.87, gt=0.0, le=1.0)
