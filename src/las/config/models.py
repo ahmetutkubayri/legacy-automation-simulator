@@ -10,6 +10,7 @@ lives here rather than as magic constants in stage code.
 from __future__ import annotations
 
 import re
+from math import isfinite
 from pathlib import PurePosixPath, PureWindowsPath
 from typing import Literal
 
@@ -128,14 +129,15 @@ class ValidationConfig(StrictModel):
     @classmethod
     def _pattern_compiles(cls, value: str) -> str:
         try:
-            re.compile(value)
-        except re.error as exc:
+            re.compile(value, re.ASCII)
+        except (re.error, ValueError) as exc:
             raise ValueError(f"is not a valid regular expression: {exc}") from exc
         return value
 
     @model_validator(mode="after")
     def _amount_range_ordered(self) -> ValidationConfig:
-        if self.amount_min >= self.amount_max:
+        # NaN is unordered, so the bounds must positively satisfy this relation.
+        if not self.amount_min < self.amount_max:
             raise ValueError("amount_min must be strictly less than amount_max")
         return self
 
@@ -225,10 +227,14 @@ class ReportConfig(StrictModel):
     @field_validator("variance_bands")
     @classmethod
     def _bands_ascending(cls, value: list[float]) -> list[float]:
+        if any(not isfinite(band) for band in value):
+            raise ValueError("variance bands must be finite")
         if any(band < 0 for band in value):
             raise ValueError("variance bands must be non-negative")
         if any(later <= earlier for earlier, later in zip(value, value[1:], strict=False)):
             raise ValueError("variance bands must be strictly ascending")
+        if value[0] != 0:
+            raise ValueError("the first variance band must be exactly zero")
         return value
 
 

@@ -190,12 +190,16 @@ def command_run(config_path: Path, out: TextIO) -> int:
 
 def command_demo(output_dir: Path, seed: int, out: TextIO) -> int:
     """Generate inputs privately, run the pipeline, and clean up either way."""
+    try:
+        config = demo_config(seed)
+    except ValueError:
+        raise ConfigurationFailure from None
     inputs = Path(tempfile.mkdtemp(prefix=".las-demo-"))
     try:
         samples = inputs / "samples"
         publish_fixtures(samples, seed)
         request = PipelineRequest(
-            config=demo_config(seed), config_dir=samples, output_override=output_dir
+            config=config, config_dir=samples, output_override=output_dir
         )
         out.write(format_summary(run_pipeline(request)))
         return EXIT_SUCCESS

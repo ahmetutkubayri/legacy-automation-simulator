@@ -318,6 +318,67 @@ def test_a_failure_emits_pipeline_failed_and_no_completion(
                                   "error_code": "extraction_error"}
 
 
+@pytest.mark.parametrize(
+    ("target", "stage"),
+    [
+        ("validation_policy", Stage.VALIDATE),
+        ("validate_ingest_result", Stage.VALIDATE),
+        ("match_policy", Stage.MATCH),
+        ("match_validated", Stage.MATCH),
+    ],
+)
+def test_validation_and_matching_failures_are_safe_and_audited(
+    tmp_path: Path, monkeypatch, target: str, stage: Stage
+) -> None:
+    root = tmp_path / "project"
+    request = make_request(root)
+    monkeypatch.chdir(tmp_path)
+    audit_root = tmp_path / "operational"
+    broken(monkeypatch, target, RuntimeError("unsafe lower-layer detail"))
+    with AuditTrail(output_root="operational") as trail, pytest.raises(StageContractError):
+        run_pipeline(request, trail=trail)
+    events = [e for e in read_events(audit_root) if e["stage"] == "pipeline"]
+    failures = [e for e in events if e["event"] == EVENT_FAILED]
+    assert len(failures) == 1
+    assert failures[0]["payload"] == {"stage": stage.value, "error_code": "stage_contract_error"}
+    assert not any(e["event"] in {EVENT_COMPLETED, EVENT_ARTIFACTS_COMMITTED} for e in events)
+    assert "unsafe lower-layer detail" not in str(events)
+    assert nothing_left(tmp_path, root / "report")
+
+
+def test_simulator_change_fails_verify_before_publication(tmp_path: Path, monkeypatch) -> None:
+    from las.simulator import RecordStore
+
+    root = tmp_path / "project"
+    request = make_request(root)
+    monkeypatch.chdir(tmp_path)
+    audit_root = tmp_path / "operational"
+    snapshots = iter([object(), object()])
+    monkeypatch.setattr(RecordStore, "snapshot", lambda self: next(snapshots))
+    with AuditTrail(output_root="operational") as trail, pytest.raises(VerificationError):
+        run_pipeline(request, trail=trail)
+    events = [e for e in read_events(audit_root) if e["stage"] == "pipeline"]
+    assert events[-1]["event"] == EVENT_FAILED
+    assert events[-1]["payload"] == {"stage": Stage.VERIFY.value,
+                                     "error_code": "verification_error"}
+    assert not any(e["event"] in {EVENT_COMPLETED, EVENT_ARTIFACTS_COMMITTED} for e in events)
+    assert nothing_left(tmp_path, root / "report")
+
+
+@pytest.mark.parametrize("target", ["validate_ingest_result", "match_validated"])
+def test_validation_and_matching_preserve_existing_pipeline_errors(
+    tmp_path: Path, monkeypatch, target: str
+) -> None:
+    root = tmp_path / "project"
+    request = make_request(root)
+    error = ConfiguredInputError("already classified")
+    broken(monkeypatch, target, error)
+    with pytest.raises(ConfiguredInputError) as excinfo:
+        run_pipeline(request)
+    assert excinfo.value is error
+    assert nothing_left(tmp_path, root / "report")
+
+
 def test_no_audit_payload_carries_a_path_or_name(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

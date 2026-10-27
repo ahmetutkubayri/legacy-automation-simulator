@@ -298,6 +298,14 @@ gaps: simulator window and buffer sizes, matching thresholds and the
 report streaming threshold. Rejection cases and accepted edges exercise
 the existing guards; no production configuration constraint changed.
 
+A subsequent final review identified additional failure-boundary defects.
+Configuration now rejects unordered NaN amount bounds, identifier patterns
+incompatible with the validator's ASCII mode, and variance ladders that are
+non-finite or do not start at zero. VALIDATE and MATCH failures retain safe
+pipeline error classification and failure auditing. A negative demo seed is
+a configuration error, and the simulator immutability check runs inside
+VERIFY before publication. Regression cases cover these failure paths.
+
 The release-readiness audit record, dated 2026-10-26, covers:
 
 - **History and confidentiality.** Gitleaks default-rule scans of the

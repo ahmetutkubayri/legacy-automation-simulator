@@ -283,16 +283,30 @@ def run_pipeline(
         # 3. VALIDATE --------------------------------------------------------
         stage = Stage.VALIDATE
         known = frozenset(v for v in links.column("external_ref") if v)
-        vpolicy = validation_policy(config.validation, known_external_refs=known)
-        validated = [validate_ingest_result(item, vpolicy) for item in ingested]
+        try:
+            vpolicy = validation_policy(config.validation, known_external_refs=known)
+            validated = [validate_ingest_result(item, vpolicy) for item in ingested]
+        except PipelineError:
+            raise
+        except Exception:
+            raise StageContractError(
+                "the validation refused this run's input", stage=stage.value
+            ) from None
         invalid = sum(item.summary.invalid_rows for item in validated)
         completed.append(StageState(Stage.VALIDATE))
         recorder.emit(EVENT_STAGE_COMPLETED, {"stage": stage.value, "count": invalid})
 
         # 4. MATCH -----------------------------------------------------------
         stage = Stage.MATCH
-        mpolicy = match_policy(config.match)
-        matched = [match_validated(item, index, mpolicy) for item in validated]
+        try:
+            mpolicy = match_policy(config.match)
+            matched = [match_validated(item, index, mpolicy) for item in validated]
+        except PipelineError:
+            raise
+        except Exception:
+            raise StageContractError(
+                "the matching refused this run's input", stage=stage.value
+            ) from None
         matching_counts = {name: 0 for name in MATCHING_OUTCOME_FIELDS}
         for item in matched:
             for name in MATCHING_OUTCOME_FIELDS:
@@ -341,6 +355,12 @@ def run_pipeline(
         stage = Stage.VERIFY
         _verify(request, len(extracted), system_rows, batches, identifiers,
                 result, report, artifacts)
+        # The simulator is untouched by a report-only run, and says so.
+        if store.snapshot() != before:
+            raise VerificationError(
+                "the simulated system changed during a report-only run",
+                stage=stage.value,
+            )
         completed.append(StageState(Stage.VERIFY))
         recorder.emit(EVENT_STAGE_COMPLETED,
                       {"stage": stage.value, "artifact_count": len(artifacts)})
@@ -348,13 +368,6 @@ def run_pipeline(
         # publication --------------------------------------------------------
         written = publish(request.output_dir, artifacts)
         recorder.emit(EVENT_ARTIFACTS_COMMITTED, {"artifact_count": len(written)})
-
-        # The simulator is untouched by a report-only run, and says so.
-        if store.snapshot() != before:  # pragma: no cover - nothing mutates it
-            raise VerificationError(
-                "the simulated system changed during a report-only run",
-                stage=Stage.VERIFY.value,
-            )
 
         summary = RunSummary(
             feed_rows=feed_rows,

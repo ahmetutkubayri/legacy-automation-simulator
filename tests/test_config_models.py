@@ -97,6 +97,12 @@ def test_amount_min_not_below_max_is_rejected(base_config: dict) -> None:
     assert_invalid(base_config, "amount_min must be strictly less than amount_max")
 
 
+@pytest.mark.parametrize("field", ["amount_min", "amount_max"])
+def test_nan_amount_bounds_are_rejected(base_config: dict, field: str) -> None:
+    base_config["validation"] = {field: float("nan")}
+    assert_invalid(base_config, "amount_min must be strictly less than amount_max")
+
+
 def test_streaming_row_threshold_out_of_range_is_rejected(base_config: dict) -> None:
     base_config["report"] = {"streaming_row_threshold": 10}
     assert_invalid(base_config, "report.streaming_row_threshold")
@@ -273,6 +279,12 @@ def test_invalid_record_id_regex_is_rejected(base_config: dict) -> None:
     assert_invalid(base_config, "record_id_pattern", "regular expression")
 
 
+@pytest.mark.parametrize("field", ["record_id_pattern", "external_ref_pattern"])
+def test_unicode_only_regex_flags_are_rejected(base_config: dict, field: str) -> None:
+    base_config["validation"] = {field: r"(?u)^\d+$"}
+    assert_invalid(base_config, field, "regular expression")
+
+
 # --- report section ----------------------------------------------------------
 
 
@@ -299,6 +311,23 @@ def test_unsorted_variance_bands_are_rejected(base_config: dict) -> None:
 def test_negative_variance_band_is_rejected(base_config: dict) -> None:
     base_config["report"] = {"variance_bands": [-1.0, 1.0]}
     assert_invalid(base_config, "non-negative")
+
+
+@pytest.mark.parametrize("bands", [[1.0], [1.0, 5.0]])
+def test_variance_bands_must_start_at_zero(base_config: dict, bands: list[float]) -> None:
+    base_config["report"] = {"variance_bands": bands}
+    assert_invalid(base_config, "first variance band must be exactly zero")
+
+
+@pytest.mark.parametrize("bound", [float("nan"), float("inf"), float("-inf")])
+def test_nonfinite_variance_bands_are_rejected(base_config: dict, bound: float) -> None:
+    base_config["report"] = {"variance_bands": [0.0, bound]}
+    assert_invalid(base_config, "report.variance_bands")
+
+
+def test_a_single_zero_band_is_valid(base_config: dict) -> None:
+    base_config["report"] = {"variance_bands": [0.0]}
+    assert RunConfig.model_validate(base_config).report.variance_bands == [0.0]
 
 
 # --- output_dir --------------------------------------------------------------
